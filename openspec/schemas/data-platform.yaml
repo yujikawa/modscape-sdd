@@ -1,0 +1,56 @@
+name: data-platform
+description: "A Spec-Driven Data Engineering workflow integrating Modscape and OpenSpec."
+
+# 1. Artifact Definitions
+artifacts:
+  - id: model
+    generates: modscape.yaml
+    description: "Modscape Data Model (Conceptual, Logical, and Physical layers)"
+    template: |
+      # Modscape Data Model Spec
+      # AI: Populate the tables based on discovery results
+      tables:
+        - id: sample_entity
+          name: SAMPLE_ENTITY
+          appearance:
+            type: dimension # dimension | fact | hub | link | satellite
+            icon: 📄
+          columns:
+            - id: entity_id
+              logical: { name: ENTITY_ID, type: UUID, isPrimaryKey: true }
+    instruction: |
+      Perform data modeling using Modscape's YAML schema:
+      1. Conceptual Layer: Define high-level business entities and map them to 'appearance.type' (dimension, fact, hub, etc.).
+      2. Logical Layer: Define 'columns' with 'logical' properties (name, type, isPrimaryKey).
+      3. Physical Layer: (Optional) Map to physical table names if different from 'name'.
+
+      Rules:
+      - Use lowercase snake_case for 'id' fields.
+      - Use uppercase for 'name' and 'logical.name'.
+      - Use appropriate icons for each entity (e.g., 👤 for Users, 💰 for Payments).
+      - Do not manually add 'layout' or coordinates; Modscape handles this via its interactive UI.
+      Keep `modscape.yaml` updated to ensure the visualization remains the 'Source of Truth'.
+
+  - id: proposal
+    generates: proposal.md
+    description: "Implementation plan based on the confirmed data model."
+    requires: [model] # Enforces "Spec-First" development
+    instruction: |
+      Based on the finalized `modscape.yaml`, propose a change plan.
+      You are free to suggest implementation technologies (e.g., dbt, PySpark, Raw SQL) 
+      based on the project context and the logical mappings defined in the model.
+
+  - id: tasks
+    generates: tasks.md
+    requires: [proposal]
+
+# 2. Custom Command Definitions (Adding /opsx:model)
+commands:
+  model:
+    description: "Interactive data modeling session using Modscape."
+    steps:
+      - action: "explore" # Investigate existing metadata first
+        optional: true
+      - action: "generate"
+        artifact: "model"
+      - message: "Please review the Modscape preview and provide feedback on domain boundaries and entity relationships."
