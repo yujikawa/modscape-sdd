@@ -1,17 +1,18 @@
 schema: data-platform
 
 # Project context
-# This is shown to AI when creating artifacts.
 context: |
-  We use Modscape for data modeling. 
-  - Data models are defined in `modscape.yaml` using a YAML-first approach.
-  - Entities follow a 3-layer approach: Conceptual (appearance.type), Logical (logical props), and Physical (name).
-  - Visualization is handled by the Modscape CLI (`modscape dev`).
+  We follow Spec-Driven Data Engineering (SDDE) with Modscape.
+  - Core Rules: Refer to `.modscape/rules.md` for naming, types, and layout management.
+  - Source of Truth: Data models in `modscape.yaml` or `models/*.yaml`.
+  - Workflow: Discovery (spec) -> Modeling (model) -> Technical Design (design) -> Plan (proposal) -> Implementation (tasks).
 
 # Per-artifact rules
 rules:
   model:
-    - Use appropriate icons from Lucide/Unicode for each entity (e.g., 👤, 💰, 📦).
-    - Ensure logical types match the intended physical database (e.g., UUID, String, Timestamp).
-  proposal:
-    - Suggest implementation technologies (e.g., dbt, Snowflake, BigQuery) based on the model scale.
+    - ALWAYS consult `.modscape/rules.md` for the latest YAML schema and Golden Rules.
+    - Coordinate placement: Proactively assign (x, y) to new entities to avoid overlapping.
+    - Use 'conceptual.tags' to improve model searchability.
+  design:
+    - Align implementation (e.g., dbt models) with Modscape's logical/physical mapping.
+    - Include data validation expectations for each 'satellite' or 'fact' table.

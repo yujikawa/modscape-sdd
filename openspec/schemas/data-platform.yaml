@@ -3,54 +3,61 @@ description: "A Spec-Driven Data Engineering workflow integrating Modscape and O
 
 # 1. Artifact Definitions
 artifacts:
-  - id: model
-    generates: modscape.yaml
-    description: "Modscape Data Model (Conceptual, Logical, and Physical layers)"
-    template: |
-      # Modscape Data Model Spec
-      # AI: Populate the tables based on discovery results
-      tables:
-        - id: sample_entity
-          name: SAMPLE_ENTITY
-          appearance:
-            type: dimension # dimension | fact | hub | link | satellite
-            icon: 📄
-          columns:
-            - id: entity_id
-              logical: { name: ENTITY_ID, type: UUID, isPrimaryKey: true }
+  - id: spec
+    generates: specs/discovery.md
+    description: "Business requirements and discovery findings."
     instruction: |
-      Perform data modeling using Modscape's YAML schema:
-      1. Conceptual Layer: Define high-level business entities and map them to 'appearance.type' (dimension, fact, hub, etc.).
-      2. Logical Layer: Define 'columns' with 'logical' properties (name, type, isPrimaryKey).
-      3. Physical Layer: (Optional) Map to physical table names if different from 'name'.
+      Document the business context, data sources, and requirements.
+      Identify key entities and their roles (e.g., Who, What, When) before modeling.
 
-      Rules:
-      - Use lowercase snake_case for 'id' fields.
-      - Use uppercase for 'name' and 'logical.name'.
-      - Use appropriate icons for each entity (e.g., 👤 for Users, 💰 for Payments).
-      - Do not manually add 'layout' or coordinates; Modscape handles this via its interactive UI.
-      Keep `modscape.yaml` updated to ensure the visualization remains the 'Source of Truth'.
+  - id: model
+    generates: modscape.yaml # Can be a directory like 'models/' if preferred
+    requires: [spec]
+    description: "Modscape Data Model (Conceptual, Logical, and Physical layers)"
+    instruction: |
+      Perform data modeling following the rules in `.modscape/rules.md`:
+      1. Update existing YAML models or create new ones in the `models/` directory.
+      2. Follow the 3-layer structure:
+         - Conceptual: Business definition and tags.
+         - Logical: Logical names and types (Source of Truth).
+         - Physical: Database-specific names and constraints.
+      3. Set 'appearance.type' (hub, link, satellite, fact, dimension) and appropriate icons.
+      4. Layout Management:
+         - When adding new tables/domains, assign initial (x, y) coordinates near related entities.
+         - DO NOT leave new entities at (0, 0).
+         - DO NOT overwrite existing coordinates unless requested.
+
+  - id: design
+    generates: design.md
+    requires: [model]
+    description: "Technical architecture and implementation design (dbt, ETL, etc.)"
+    instruction: |
+      Based on the finalized Modscape model, design the technical implementation:
+      - Define dbt model structures (staging, intermediate, marts).
+      - Specify transformation logic and data quality tests (e.g., unique, not_null).
+      - Map Modscape's 'physical' layer to actual implementation code.
 
   - id: proposal
     generates: proposal.md
-    description: "Implementation plan based on the confirmed data model."
-    requires: [model] # Enforces "Spec-First" development
-    instruction: |
-      Based on the finalized `modscape.yaml`, propose a change plan.
-      You are free to suggest implementation technologies (e.g., dbt, PySpark, Raw SQL) 
-      based on the project context and the logical mappings defined in the model.
+    requires: [design]
+    description: "Implementation plan based on the confirmed design."
 
   - id: tasks
     generates: tasks.md
     requires: [proposal]
 
-# 2. Custom Command Definitions (Adding /opsx:model)
+# 2. Custom Command Definitions
 commands:
   model:
     description: "Interactive data modeling session using Modscape."
     steps:
-      - action: "explore" # Investigate existing metadata first
+      - action: "explore"
         optional: true
       - action: "generate"
         artifact: "model"
-      - message: "Please review the Modscape preview and provide feedback on domain boundaries and entity relationships."
+      - message: "Please review the Modscape preview. AI has assigned initial layout coordinates."
+  design:
+    description: "Design the technical implementation for the current model."
+    steps:
+      - action: "generate"
+        artifact: "design"
