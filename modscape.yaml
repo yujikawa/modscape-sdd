@@ -1,0 +1,946 @@
+tables:
+  - id: hub_user
+    name: User Hub
+    physical_name: hub_user
+    appearance:
+      type: hub
+      icon: 👤
+    conceptual:
+      description: Business key for all user entities across source systems.
+    columns:
+      - id: user_hk
+        logical:
+          name: User Hash Key
+          type: String
+          isPrimaryKey: true
+      - id: user_bk
+        logical:
+          name: User ID (BK)
+          type: String
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+      - id: record_source
+        logical:
+          name: Record Source
+          type: String
+    sampleData:
+      - - a1b2c3d4
+        - USR-00001
+        - app.users
+      - - e5f6g7h8
+        - USR-00042
+        - app.users
+      - - i9j0k1l2
+        - USR-00099
+        - app.users
+  - id: hub_plan
+    name: Plan Hub
+    physical_name: hub_plan
+    appearance:
+      type: hub
+      icon: 📋
+    conceptual:
+      description: Business key for subscription plans (Free, Starter, Pro, Enterprise).
+    columns:
+      - id: plan_hk
+        logical:
+          name: Plan Hash Key
+          type: String
+          isPrimaryKey: true
+      - id: plan_bk
+        logical:
+          name: Plan Code (BK)
+          type: String
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+      - id: record_source
+        logical:
+          name: Record Source
+          type: String
+    sampleData:
+      - - p1a2b3c4
+        - PLAN-FREE
+        - billing.plans
+      - - p5d6e7f8
+        - PLAN-STARTER
+        - billing.plans
+      - - p9g0h1i2
+        - PLAN-PRO
+        - billing.plans
+  - id: hub_subscription
+    name: Subscription Hub
+    physical_name: hub_subscription
+    appearance:
+      type: hub
+      icon: 🔑
+    conceptual:
+      description: Business key for each subscription contract between a user and a plan.
+    columns:
+      - id: subscription_hk
+        logical:
+          name: Subscription Hash Key
+          type: String
+          isPrimaryKey: true
+      - id: subscription_bk
+        logical:
+          name: Subscription ID (BK)
+          type: String
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+      - id: record_source
+        logical:
+          name: Record Source
+          type: String
+    sampleData:
+      - - s1a2b3c4
+        - SUB-10001
+        - billing.subscriptions
+      - - s5d6e7f8
+        - SUB-10002
+        - billing.subscriptions
+  - id: lnk_user_subscription
+    name: User Subscription Link
+    physical_name: lnk_user_subscription
+    appearance:
+      type: link
+    conceptual:
+      description: Links a user to a subscription and a plan. One user can have multiple subscriptions over time.
+    columns:
+      - id: lnk_hk
+        logical:
+          name: Link Hash Key
+          type: String
+          isPrimaryKey: true
+      - id: user_hk
+        logical:
+          name: User Hash Key
+          type: String
+          isForeignKey: true
+      - id: plan_hk
+        logical:
+          name: Plan Hash Key
+          type: String
+          isForeignKey: true
+      - id: subscription_hk
+        logical:
+          name: Subscription Hash Key
+          type: String
+          isForeignKey: true
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+      - id: record_source
+        logical:
+          name: Record Source
+          type: String
+    sampleData: []
+  - id: sat_user_profile
+    name: User Profile
+    physical_name: sat_user_profile
+    appearance:
+      type: satellite
+      icon: 🛰️
+    conceptual:
+      description: Descriptive attributes of a user (name, email, company, signup channel).
+    columns:
+      - id: user_hk
+        logical:
+          name: User Hash Key
+          type: String
+          isForeignKey: true
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+          isPrimaryKey: true
+      - id: hash_diff
+        logical:
+          name: Hash Diff
+          type: String
+      - id: email
+        logical:
+          name: Email
+          type: String
+      - id: company_name
+        logical:
+          name: Company Name
+          type: String
+      - id: country_code
+        logical:
+          name: Country Code
+          type: String
+      - id: signup_channel
+        logical:
+          name: Signup Channel
+          type: String
+    sampleData:
+      - - a1b2c3d4
+        - '2024-01-15T00:00:00.000Z'
+        - hd1
+        - alice@example.com
+        - Acme Corp
+        - JP
+        - organic
+      - - e5f6g7h8
+        - '2024-02-01T00:00:00.000Z'
+        - hd2
+        - bob@example.com
+        - Beta Inc
+        - US
+        - paid_search
+  - id: sat_plan_details
+    name: Plan Details
+    physical_name: sat_plan_details
+    appearance:
+      type: satellite
+      icon: 🛰️
+    conceptual:
+      description: Attributes of a plan such as pricing, billing cycle, and feature limits.
+    columns:
+      - id: plan_hk
+        logical:
+          name: Plan Hash Key
+          type: String
+          isForeignKey: true
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+          isPrimaryKey: true
+      - id: hash_diff
+        logical:
+          name: Hash Diff
+          type: String
+      - id: plan_name
+        logical:
+          name: Plan Name
+          type: String
+      - id: monthly_price_usd
+        logical:
+          name: Monthly Price (USD)
+          type: Decimal
+      - id: billing_cycle
+        logical:
+          name: Billing Cycle
+          type: String
+      - id: max_seats
+        logical:
+          name: Max Seats
+          type: Int
+    sampleData:
+      - - p5d6e7f8
+        - '2024-01-01T00:00:00.000Z'
+        - hd3
+        - Starter
+        - 29
+        - monthly
+        - 5
+      - - p9g0h1i2
+        - '2024-01-01T00:00:00.000Z'
+        - hd4
+        - Pro
+        - 99
+        - monthly
+        - 20
+  - id: sat_subscription_status
+    name: Subscription Status
+    physical_name: sat_subscription_status
+    appearance:
+      type: satellite
+      icon: 🛰️
+    conceptual:
+      description: Current and historical status of a subscription (active, trialing, cancelled, churned).
+    columns:
+      - id: subscription_hk
+        logical:
+          name: Subscription Hash Key
+          type: String
+          isForeignKey: true
+      - id: load_dts
+        logical:
+          name: Load Date
+          type: Timestamp
+          isPrimaryKey: true
+      - id: hash_diff
+        logical:
+          name: Hash Diff
+          type: String
+      - id: status
+        logical:
+          name: Status
+          type: String
+      - id: trial_start_date
+        logical:
+          name: Trial Start Date
+          type: Date
+      - id: trial_end_date
+        logical:
+          name: Trial End Date
+          type: Date
+      - id: start_date
+        logical:
+          name: Start Date
+          type: Date
+      - id: cancelled_date
+        logical:
+          name: Cancelled Date
+          type: Date
+      - id: mrr_amount
+        logical:
+          name: MRR Amount (USD)
+          type: Decimal
+    sampleData:
+      - - s1a2b3c4
+        - '2024-01-15T00:00:00.000Z'
+        - hd5
+        - active
+        - '2024-01-08T00:00:00.000Z'
+        - '2024-01-14T00:00:00.000Z'
+        - '2024-01-15T00:00:00.000Z'
+        - null
+        - 29
+      - - s5d6e7f8
+        - '2024-02-01T00:00:00.000Z'
+        - hd6
+        - trialing
+        - '2024-02-01T00:00:00.000Z'
+        - '2024-02-14T00:00:00.000Z'
+        - null
+        - null
+        - 0
+  - id: dim_users
+    name: Users
+    logical_name: User Dimension
+    physical_name: dim_users
+    appearance:
+      type: dimension
+      icon: 👤
+      scd: type2
+    conceptual:
+      description: SCD Type 2 user dimension derived from hub_user + sat_user_profile.
+      tags:
+        - WHO
+    implementation:
+      materialization: table
+    columns:
+      - id: user_key
+        logical:
+          name: User Key
+          type: Int
+          isPrimaryKey: true
+      - id: user_id
+        logical:
+          name: User ID (BK)
+          type: String
+      - id: email
+        logical:
+          name: Email
+          type: String
+      - id: company_name
+        logical:
+          name: Company Name
+          type: String
+      - id: country_code
+        logical:
+          name: Country Code
+          type: String
+      - id: signup_channel
+        logical:
+          name: Signup Channel
+          type: String
+      - id: is_current
+        logical:
+          name: Is Current
+          type: Boolean
+      - id: valid_from
+        logical:
+          name: Valid From
+          type: Date
+      - id: valid_to
+        logical:
+          name: Valid To
+          type: Date
+    sampleData: []
+  - id: dim_plans
+    name: Plans
+    logical_name: Plan Dimension
+    physical_name: dim_plans
+    appearance:
+      type: dimension
+      icon: 📋
+    conceptual:
+      description: Plan dimension derived from hub_plan + sat_plan_details.
+      tags:
+        - WHAT
+    implementation:
+      materialization: table
+    columns:
+      - id: plan_key
+        logical:
+          name: Plan Key
+          type: Int
+          isPrimaryKey: true
+      - id: plan_code
+        logical:
+          name: Plan Code (BK)
+          type: String
+      - id: plan_name
+        logical:
+          name: Plan Name
+          type: String
+      - id: monthly_price_usd
+        logical:
+          name: Monthly Price (USD)
+          type: Decimal
+      - id: billing_cycle
+        logical:
+          name: Billing Cycle
+          type: String
+      - id: max_seats
+        logical:
+          name: Max Seats
+          type: Int
+    sampleData:
+      - - 1
+        - PLAN-FREE
+        - Free
+        - 0
+        - monthly
+        - 1
+      - - 2
+        - PLAN-STARTER
+        - Starter
+        - 29
+        - monthly
+        - 5
+      - - 3
+        - PLAN-PRO
+        - Pro
+        - 99
+        - monthly
+        - 20
+  - id: fct_subscription_events
+    name: Subscription Events
+    logical_name: Subscription Event Fact
+    physical_name: fct_subscription_events
+    appearance:
+      type: fact
+      icon: 📊
+    conceptual:
+      description: One row = one subscription status change event. Captures trial_start, activated, upgraded, downgraded, cancelled.
+      tags:
+        - WHAT
+        - HOW_MUCH
+        - WHEN
+    implementation:
+      materialization: incremental
+      incremental_strategy: merge
+      unique_key:
+        - subscription_id
+        - event_date
+        - event_type
+      partition_by:
+        - field: event_date
+          granularity: day
+    columns:
+      - id: subscription_id
+        logical:
+          name: Subscription ID
+          type: String
+          isPrimaryKey: true
+      - id: user_key
+        logical:
+          name: User Key
+          type: Int
+          isForeignKey: true
+      - id: plan_key
+        logical:
+          name: Plan Key
+          type: Int
+          isForeignKey: true
+      - id: date_key
+        logical:
+          name: Date Key
+          type: Int
+          isForeignKey: true
+      - id: event_date
+        logical:
+          name: Event Date
+          type: Date
+          isPartitionKey: true
+      - id: event_type
+        logical:
+          name: Event Type
+          type: String
+      - id: mrr_amount
+        logical:
+          name: MRR Amount (USD)
+          type: Decimal
+          additivity: fully
+      - id: mrr_delta
+        logical:
+          name: MRR Delta (USD)
+          type: Decimal
+          additivity: fully
+      - id: is_churn
+        logical:
+          name: Is Churn
+          type: Boolean
+      - id: is_new_business
+        logical:
+          name: Is New Business
+          type: Boolean
+    sampleData:
+      - - SUB-10001
+        - 1
+        - 2
+        - 20240115
+        - '2024-01-15T00:00:00.000Z'
+        - activated
+        - 29
+        - 29
+        - false
+        - true
+      - - SUB-10001
+        - 1
+        - 3
+        - 20240201
+        - '2024-02-01T00:00:00.000Z'
+        - upgraded
+        - 99
+        - 70
+        - false
+        - false
+      - - SUB-10002
+        - 2
+        - 2
+        - 20240301
+        - '2024-03-01T00:00:00.000Z'
+        - cancelled
+        - 0
+        - -29
+        - true
+        - false
+  - id: mart_mrr
+    name: MRR
+    logical_name: Monthly Recurring Revenue
+    physical_name: mart_mrr
+    appearance:
+      type: mart
+      icon: 💰
+    conceptual:
+      description: Month-end MRR snapshot broken down by plan and country. Used for revenue reporting.
+      tags:
+        - HOW_MUCH
+        - WHEN
+      businessDefinitions:
+        mrr: Monthly Recurring Revenue — sum of normalized monthly revenue from all active subscriptions at month end.
+        new_mrr: MRR added from newly activated subscriptions this month.
+        churn_mrr: MRR lost from cancellations this month.
+        expansion_mrr: MRR gained from upgrades this month.
+    implementation:
+      materialization: table
+      grain:
+        - month_key
+        - plan_key
+        - country_code
+      measures:
+        - column: mrr
+          agg: sum
+          source_column: fct_subscription_events.mrr_amount
+        - column: new_mrr
+          agg: sum
+          source_column: fct_subscription_events.mrr_delta
+        - column: active_subscriptions
+          agg: count_distinct
+          source_column: fct_subscription_events.subscription_id
+    columns:
+      - id: month_key
+        logical:
+          name: Month Key
+          type: Int
+          isPrimaryKey: true
+      - id: plan_key
+        logical:
+          name: Plan Key
+          type: Int
+          isPrimaryKey: true
+      - id: country_code
+        logical:
+          name: Country Code
+          type: String
+          isPrimaryKey: true
+      - id: mrr
+        logical:
+          name: MRR (USD)
+          type: Decimal
+          additivity: fully
+      - id: new_mrr
+        logical:
+          name: New MRR (USD)
+          type: Decimal
+          additivity: fully
+      - id: churn_mrr
+        logical:
+          name: Churn MRR (USD)
+          type: Decimal
+          additivity: fully
+      - id: expansion_mrr
+        logical:
+          name: Expansion MRR (USD)
+          type: Decimal
+          additivity: fully
+      - id: active_subscriptions
+        logical:
+          name: Active Subscriptions
+          type: Int
+          additivity: fully
+    sampleData: []
+  - id: mart_churn
+    name: Churn Analysis
+    logical_name: Subscription Churn Analysis
+    physical_name: mart_churn
+    appearance:
+      type: mart
+      icon: 📉
+    conceptual:
+      description: Monthly churn cohort analysis. Tracks retention rate by plan and signup channel.
+      tags:
+        - WHO
+        - WHEN
+      businessDefinitions:
+        churn_rate: Percentage of active subscriptions at the start of a month that were cancelled by month end.
+    implementation:
+      materialization: table
+      grain:
+        - month_key
+        - plan_key
+        - signup_channel
+      measures:
+        - column: churned_count
+          agg: count_distinct
+          source_column: fct_subscription_events.subscription_id
+        - column: churn_rate
+          agg: custom
+    columns:
+      - id: month_key
+        logical:
+          name: Month Key
+          type: Int
+          isPrimaryKey: true
+      - id: plan_key
+        logical:
+          name: Plan Key
+          type: Int
+          isPrimaryKey: true
+      - id: signup_channel
+        logical:
+          name: Signup Channel
+          type: String
+          isPrimaryKey: true
+      - id: active_start
+        logical:
+          name: Active at Month Start
+          type: Int
+          additivity: fully
+      - id: churned_count
+        logical:
+          name: Churned Count
+          type: Int
+          additivity: fully
+      - id: churn_rate
+        logical:
+          name: Churn Rate
+          type: Decimal
+          additivity: non
+    sampleData: []
+relationships:
+  - from:
+      table: lnk_user_subscription
+      column:
+        - user_hk
+    to:
+      table: hub_user
+      column:
+        - user_hk
+    type: many-to-one
+    id: rel-lnk_user_subscription.user_hk-hub_user.user_hk
+  - from:
+      table: lnk_user_subscription
+      column:
+        - plan_hk
+    to:
+      table: hub_plan
+      column:
+        - plan_hk
+    type: many-to-one
+    id: rel-lnk_user_subscription.plan_hk-hub_plan.plan_hk
+  - from:
+      table: lnk_user_subscription
+      column:
+        - subscription_hk
+    to:
+      table: hub_subscription
+      column:
+        - subscription_hk
+    type: many-to-one
+    id: rel-lnk_user_subscription.subscription_hk-hub_subscription.subscription_hk
+  - from:
+      table: sat_user_profile
+      column:
+        - user_hk
+    to:
+      table: hub_user
+      column:
+        - user_hk
+    type: many-to-one
+    id: rel-sat_user_profile.user_hk-hub_user.user_hk
+  - from:
+      table: sat_plan_details
+      column:
+        - plan_hk
+    to:
+      table: hub_plan
+      column:
+        - plan_hk
+    type: many-to-one
+    id: rel-sat_plan_details.plan_hk-hub_plan.plan_hk
+  - from:
+      table: sat_subscription_status
+      column:
+        - subscription_hk
+    to:
+      table: hub_subscription
+      column:
+        - subscription_hk
+    type: many-to-one
+    id: rel-sat_subscription_status.subscription_hk-hub_subscription.subscription_hk
+  - from:
+      table: fct_subscription_events
+      column:
+        - user_key
+    to:
+      table: dim_users
+      column:
+        - user_key
+    type: many-to-one
+    id: rel-fct_subscription_events.user_key-dim_users.user_key
+  - from:
+      table: fct_subscription_events
+      column:
+        - plan_key
+    to:
+      table: dim_plans
+      column:
+        - plan_key
+    type: many-to-one
+    id: rel-fct_subscription_events.plan_key-dim_plans.plan_key
+  - from:
+      table: fct_subscription_events
+      column:
+        - date_key
+    to:
+      table: dim_dates
+      column:
+        - date_key
+    type: many-to-one
+    id: rel-fct_subscription_events.date_key-dim_dates.date_key
+lineage:
+  - from: hub_user
+    to: dim_users
+    id: lin-hub_user-dim_users
+  - from: sat_user_profile
+    to: dim_users
+    id: lin-sat_user_profile-dim_users
+  - from: hub_plan
+    to: dim_plans
+    id: lin-hub_plan-dim_plans
+  - from: sat_plan_details
+    to: dim_plans
+    id: lin-sat_plan_details-dim_plans
+  - from: hub_subscription
+    to: fct_subscription_events
+    id: lin-hub_subscription-fct_subscription_events
+  - from: lnk_user_subscription
+    to: fct_subscription_events
+    id: lin-lnk_user_subscription-fct_subscription_events
+  - from: sat_subscription_status
+    to: fct_subscription_events
+    id: lin-sat_subscription_status-fct_subscription_events
+  - from: dim_users
+    to: fct_subscription_events
+    id: lin-dim_users-fct_subscription_events
+  - from: dim_plans
+    to: fct_subscription_events
+    id: lin-dim_plans-fct_subscription_events
+  - from: dim_dates
+    to: fct_subscription_events
+    id: lin-dim_dates-fct_subscription_events
+  - from: fct_subscription_events
+    to: mart_mrr
+    id: lin-fct_subscription_events-mart_mrr
+  - from: fct_subscription_events
+    to: mart_churn
+    id: lin-fct_subscription_events-mart_churn
+  - from: mart_mrr
+    to: revenue_dashboard
+    id: lin-mart_mrr-revenue_dashboard
+  - from: mart_mrr
+    to: cs_report
+    id: lin-mart_mrr-cs_report
+  - from: mart_churn
+    to: cs_report
+    id: lin-mart_churn-cs_report
+domains:
+  - id: raw_vault
+    name: Raw Vault
+    description: Immutable historical record loaded directly from application source systems
+    color: rgba(234, 179, 8, 0.08)
+    members:
+      - hub_user
+      - hub_plan
+      - hub_subscription
+      - lnk_user_subscription
+      - sat_user_profile
+      - sat_plan_details
+      - sat_subscription_status
+  - id: star_schema
+    name: Star Schema
+    description: Conformed dimensional model built from the Raw Vault
+    color: rgba(59, 130, 246, 0.08)
+    members:
+      - dim_users
+      - dim_plans
+      - dim_dates
+      - fct_subscription_events
+  - id: mart
+    name: Data Mart
+    description: Aggregated models ready for BI and product analytics consumption
+    color: rgba(249, 115, 22, 0.08)
+    members:
+      - mart_mrr
+      - mart_churn
+consumers:
+  - id: revenue_dashboard
+    name: Revenue Dashboard
+    description: Real-time MRR, ARR, and growth metrics for the finance and leadership team
+    appearance:
+      icon: 💰
+      color: '#16a34a'
+    url: https://bi.example.com/revenue
+  - id: cs_report
+    name: CS Weekly Report
+    description: Weekly churn analysis and at-risk account alerts for the Customer Success team
+    appearance:
+      icon: 📋
+      color: '#7c3aed'
+annotations:
+  - id: note_vault_to_star
+    type: callout
+    text: |-
+      Raw Vault → Star Schema
+      Hub + Satellite = Dimension
+      Hub + Link + Satellite = Fact
+    color: '#fef9c3'
+    targetId: raw_vault
+    targetType: domain
+    offset:
+      x: 20
+      'y': -80
+  - id: note_mrr_grain
+    type: sticky
+    text: |-
+      Grain: subscription × event_date × event_type
+      event_type: trial_start | activated |
+                  upgraded | downgraded | cancelled
+    color: '#7f7348'
+    targetId: fct_subscription_events
+    targetType: table
+    offset:
+      x: 320
+      'y': 20
+layout:
+  lnk_user_subscription:
+    x: 257
+    'y': 400
+    parentId: raw_vault
+  sat_subscription_status:
+    x: 577
+    'y': 400
+    parentId: raw_vault
+  hub_subscription:
+    x: 897
+    'y': 400
+    parentId: raw_vault
+  sat_user_profile:
+    x: 257
+    'y': 760
+    parentId: raw_vault
+  hub_user:
+    x: 897
+    'y': 760
+    parentId: raw_vault
+  sat_plan_details:
+    x: 257
+    'y': 1100
+    parentId: raw_vault
+  hub_plan:
+    x: 897
+    'y': 1100
+    parentId: raw_vault
+  raw_vault:
+    x: 69
+    'y': 130
+    width: 1016
+    height: 1200
+  dim_dates:
+    x: 1235
+    'y': 500
+    parentId: star_schema
+  fct_subscription_events:
+    x: 1555
+    'y': 500
+    parentId: star_schema
+  dim_users:
+    x: 1235
+    'y': 900
+    parentId: star_schema
+  dim_plans:
+    x: 1555
+    'y': 900
+    parentId: star_schema
+  star_schema:
+    x: 1125
+    'y': 313
+    width: 696
+    height: 900
+  mart_mrr:
+    x: 1944
+    'y': 490
+    parentId: mart
+  mart_churn:
+    x: 1971
+    'y': 880
+    parentId: mart
+  mart:
+    x: 1834
+    'y': 315
+    width: 696
+    height: 650
+  revenue_dashboard:
+    x: 2410
+    'y': 430
+  cs_report:
+    x: 2410
+    'y': 820
+imports:
+  - from: ./dim_dates.yaml
+    ids:
+      - dim_dates
