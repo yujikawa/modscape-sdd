@@ -91,13 +91,33 @@ conceptual:
   tags: [WHAT, HOW_MUCH]   # BEAM* tags: WHO | WHAT | WHEN | WHERE | HOW | COUNT | HOW_MUCH
 ```
 
-### 2-4. `columns` Fields
+### 2-4. `metadata` Fields (user-defined key-value pairs)
+
+Free-form key-value map for project-specific information that does not fit the standard schema.
+Any string key is accepted; values can be strings, numbers, or booleans.
+
+```yaml
+metadata:
+  owner: data-platform        # Team or person responsible for this table
+  sla: "daily 6AM JST"        # Delivery SLA
+  sql_path: "models/marts/fct_orders.sql"  # Path to the SQL or model file
+  sensitivity: PII            # Data sensitivity label
+  cost_center: CC-1234        # Any custom label
+```
+
+**Rules:**
+- `metadata` is **OPTIONAL**. Omit entirely if not needed.
+- All keys must be strings. Values must be scalar (string, number, boolean) — do **not** nest objects or arrays inside `metadata`.
+- This field is preserved as-is and never modified by Modscape CLI commands.
+
+### 2-5. `columns` Fields
 
 Each column has an `id` plus optional `logical` and `physical` blocks.
 
 ```yaml
 columns:
   - id: order_id           # REQUIRED. Unique within the table.
+    expression: "CAST(raw.amount AS DECIMAL(18,2)) * fx.rate"  # optional. SQL expression for SELECT clause generation.
     logical:
       name: "Order ID"     # Display name
       type: Int            # Int | String | Decimal | Date | Timestamp | Boolean | ...
@@ -111,6 +131,12 @@ columns:
       type: "BIGINT"
       constraints: [NOT NULL, UNIQUE]
 ```
+
+**`expression`** (optional) — SQL transformation formula used by SDD implement skill when generating SELECT clauses.
+- Omit if the column maps 1:1 from upstream without transformation.
+- Can reference multiple source columns: `"CAST(amount AS DECIMAL(18,2)) * fx_rate"`.
+- Tool-specific syntax is allowed: `"{{ source('raw', 'orders') }}.amount"`.
+- Empty string is invalid — either write a valid SQL expression or omit the field entirely.
 
 ---
 
@@ -156,11 +182,26 @@ lineage:
   - id: lin_orders_revenue # Unique ID — REQUIRED for stable referencing
     from: fct_orders    # source table id
     to: mart_revenue    # derived table id
+    join_type: left     # optional. inner | left | cross | none
     description: "Aggregated daily order amounts into monthly buckets."  # optional
   - id: lin_dates_revenue
     from: dim_dates
     to: mart_revenue
+    join_type: inner
 ```
+
+**`join_type`** (optional) — How the downstream table joins this upstream source.
+
+| value | Meaning |
+|-------|---------|
+| `inner` | INNER JOIN — only matching rows |
+| `left` | LEFT JOIN — keep all downstream rows |
+| `cross` | CROSS JOIN — all row combinations |
+| `none` | No explicit JOIN — use as CTE or subquery |
+
+**Default behavior when omitted:**
+- If a `relationships` entry exists for the same pair → SDD generates `LEFT JOIN` using the relationship columns.
+- If no `relationships` entry → treated as `none` (CTE reference).
 
 ### When to use lineage vs relationships
 
@@ -436,7 +477,41 @@ tables:
         - column: total_revenue         # output column id in this table
           agg: sum                      # sum | count | count_distinct | avg | min | max
           source_column: amount         # upstream column id (use <table_id>.<col_id> to disambiguate)
+      incremental_key: updated_at       # optional. column id for WHERE filter in incremental models
+      incremental_lookback: "3 days"    # optional. safety margin added to incremental filter
 ```
+
+**`incremental_key`** (optional) — Column ID used as the timestamp/date filter for incremental loads.
+- Only meaningful when `materialization: incremental`.
+- SDD generates: `WHERE <incremental_key> > {{ last_run_timestamp }}`.
+- When omitted, SDD infers from column names (e.g. `updated_at`, `created_at`).
+
+**`incremental_lookback`** (optional) — Safety margin subtracted from the incremental filter boundary.
+- Format: `"N days"`, `"N hours"`, `"N minutes"`.
+- SDD generates: `WHERE updated_at > {{ last_run_timestamp }} - INTERVAL 3 DAY`.
+- When omitted, no lookback margin is applied.
+
+For SCD Type2 dimensions, add an `scd2` block:
+
+```yaml
+tables:
+  - id: dim_customers
+    appearance: { type: dimension, scd: type2 }
+    implementation:
+      materialization: table
+      scd2:
+        business_key: [customer_id]     # natural key column id(s)
+        valid_from: valid_from          # column id for start date
+        valid_to: valid_to              # column id for end date
+        current_flag: is_current        # optional. column id for current record flag
+```
+
+**`scd2`** (optional) — Specifies SCD Type2 column roles for the SDD implement skill.
+- Only valid when `appearance.scd: type2`.
+- `business_key`: array of natural key column IDs (supports composite keys).
+- `valid_from` / `valid_to`: column IDs holding the effective date range.
+- `current_flag`: optional boolean flag column for the active record.
+- When omitted, SDD infers column roles from names and outputs TODO comments for unknowns.
 
 ### AI Inference Defaults (when `implementation` is absent)
 

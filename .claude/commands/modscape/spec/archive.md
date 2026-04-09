@@ -30,6 +30,12 @@ modscape summary <file> --json
    - `.modscape/changes/<name>/design.md`
    - `.modscape/changes/<name>/spec-model.yaml`
 
+   From `design.md`, build the **affected tables classification**:
+   - **Direct Impact** tables: listed under `### Direct Impact`
+   - **Downstream Impact — Implement** tables: listed under `### Downstream Impact — Implement`
+   - **Downstream Impact — Context Only** tables: listed under `### Downstream Impact — Context Only`
+   - If `design.md` does not exist or has no `## Affected Tables` section: treat all tables in `spec-model.yaml` as Direct Impact (backwards compatible).
+
 ### Step 1: Merge work YAML into master YAML(s)
 
 3. For each master YAML listed in `spec-config.yaml`, extract only the tables assigned to it and merge:
@@ -56,26 +62,25 @@ modscape summary <file> --json
 
 ### Step 2: Sync permanent table specs
 
-5. **Identify affected tables** from `design.md`:
-   - **Direct impact tables**: listed under `## Affected Tables > ### Direct Impact`
-   - **Indirect impact tables**: listed under `## Affected Tables > ### Indirect Impact`
-   - If `design.md` has no affected tables section: infer from `changes/<name>/spec-model.yaml` lineage.
+5. Use the **affected tables classification** built in step 2 above.
 
-6. **Sync `specs/<table-id>.md` for direct impact tables**:
+6. **Full spec sync for Direct Impact and Downstream Impact — Implement tables**:
 
-   For each directly affected table:
+   For each table in **Direct Impact** or **Downstream Impact — Implement**:
 
    a. Check whether `.modscape/specs/<table-id>.md` exists.
       - If **not**: create a new file using the format below.
-      - If **exists**: update only the relevant sections; preserve unrelated content.
+      - If **exists**: update only the relevant sections (Overview, Business Context, Business Rules, Known Issues); preserve unrelated content.
 
    b. Append a Changelog entry:
       ```
       - <YYYY-MM-DD>: <brief description of change> (SDD: <name>)
       ```
 
-7. **Update Changelog only for indirect impact tables**:
-   - Append: `- <YYYY-MM-DD>: Referenced by new downstream pipeline (SDD: <name>)`
+7. **Changelog only for Downstream Impact — Context Only tables**:
+   - Do **not** perform a full spec sync for these tables.
+   - Only append a Changelog entry to `.modscape/specs/<table-id>.md` (create the file with minimal content if it does not exist):
+     - Append: `- <YYYY-MM-DD>: Referenced in downstream lineage; no structural change required (SDD: <name>)`
 
 8. **Report the sync result**:
    > Merged into master YAML ✓

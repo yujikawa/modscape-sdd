@@ -48,25 +48,19 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 
 6. **Extract relevant tables from the master YAML(s)** (first run only):
 
-   Read `.modscape/changes/<name>/spec.md` and identify the **Data Sources**. For each master YAML, run extract with `--append` and `--record` so the source mapping is recorded automatically:
+   Read `.modscape/changes/<name>/spec.md` and identify the tables to modify (Data Sources). Pass all master YAMLs from `spec-config.yaml` as inputs and use `--with-downstream` to automatically collect all downstream tables in one command:
 
    ```bash
-   # First master YAML (creates model.yaml)
-   modscape extract <master1>.yaml \
+   modscape extract <master1>.yaml <master2>.yaml ... \
      --tables <id1>,<id2>,... \
+     --with-downstream \
      --output .modscape/changes/<name>/spec-model.yaml \
-     --record .modscape/changes/<name>/spec-config.yaml
-
-   # Additional master YAMLs (upsert into existing model.yaml)
-   modscape extract <master2>.yaml \
-     --tables <id3>,... \
-     --output .modscape/changes/<name>/spec-model.yaml \
-     --append \
      --record .modscape/changes/<name>/spec-config.yaml
    ```
 
-   `--record` automatically updates `spec-config.yaml` with which tables came from which YAML.
-   `--append` upserts into the existing `spec-model.yaml` instead of overwriting.
+   - `--tables`: comma-separated IDs of the tables being **directly modified**
+   - `--with-downstream`: recursively collects all downstream tables across all input YAMLs using BFS, producing the union of all downstreams
+   - `--record`: automatically records which tables came from which source YAML in `spec-config.yaml`
 
    When tables are added or removed during design, always update `spec-config.yaml` manually to keep it in sync:
    - Table added → add its ID to the appropriate `master_yamls[].tables` entry
@@ -77,9 +71,13 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 
 6. Read all existing `specs/*.md` files (if any) to understand current business context.
 
-7. **Identify affected tables** by cross-referencing spec.md with the lineage in `changes/<name>/spec-model.yaml`:
-   - **Direct impact**: Tables that will be newly created or structurally modified
-   - **Indirect impact**: Tables that exist upstream in lineage of direct-impact tables
+7. **Identify affected tables** from the extraction result and classify downstream tables:
+   - **Direct Impact**: Tables specified in `--tables` (will be newly created or structurally modified)
+   - **Downstream Impact — Implement**: Downstream tables that reference a column being added or changed in a Direct Impact table → must be updated
+   - **Downstream Impact — Context Only**: Downstream tables that reference a Direct Impact table but do not use the changed columns → no code changes required, collected for reference only
+   - If a downstream table has no column detail (lineage only) → classify as **Context Only** and add a comment noting that classification confidence is low
+
+   This classification is an **AI proposal**. Write the disclaimer in `design.md` (see format below) and instruct the user to edit it directly if the classification is wrong.
 
 8. Design the data model — **all changes go to `changes/<name>/spec-model.yaml`, never to the master YAML**:
    - Propose tables (with `appearance.type`: staging → core fact/dimension → mart)
@@ -123,11 +121,16 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 
 ## Affected Tables
 
+> ⚠️ この Affected Tables 分類は AI の提案です。内容が異なる場合は直接編集してください。
+
 ### Direct Impact
 - `<table-id>`: <reason (new / column added / restructured)>
 
-### Indirect Impact
-- `<table-id>`: upstream dependency (Changelog will be updated on archive)
+### Downstream Impact — Implement
+- `<table-id>`: <which changed column is referenced and why this table must be updated>
+
+### Downstream Impact — Context Only
+- `<table-id>`: <why no code change is needed — e.g., does not reference changed columns>
 
 ## Findings
 
