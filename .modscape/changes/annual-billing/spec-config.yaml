@@ -1,0 +1,8 @@
+master_yamls:
+  - path: modscape.yaml
+    tables:
+      - sat_subscription_status
+      - fct_subscription_events
+      - mart_mrr
+new_tables:
+  - mart_arr
