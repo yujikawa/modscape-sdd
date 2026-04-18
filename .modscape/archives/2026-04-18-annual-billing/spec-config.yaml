@@ -1,0 +1,3 @@
+main_yamls:
+  - path: modscape.yaml
+    tables: []

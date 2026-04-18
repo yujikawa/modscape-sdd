@@ -12,7 +12,7 @@
 #   │   ├── modscape-spec.custom.md     This file (project-wide custom rules)
 #   │   └── <name>/                     Work folder per pipeline (temporary)
 #   │       ├── spec.md                 Business requirements
-#   │       ├── spec-config.yaml        Master YAML mapping for this spec
+#   │       ├── spec-config.yaml        Main YAML mapping for this spec
 #   │       ├── model.yaml              Work-scoped YAML (extracted + new tables)
 #   │       ├── design.md               Design decisions + real-data findings
 #   │       └── tasks.md                Implementation task list
@@ -34,14 +34,14 @@
 # - Target tool is always dbt (BigQuery). Do not ask the user to choose.
 # - All models must be in the `analytics` dbt project.
 
-## Master YAMLs
+## Main YAMLs
 
-# Default master YAML(s) for this project.
+# Default main YAML(s) for this project.
 # Used when spec-config.yaml does not exist yet.
 # If your project has multiple domain YAMLs, list them all.
 # The AI will ask which tables belong to which YAML during design.
 #
-# Master YAMLs:
+# Main YAMLs:
 #   - models/sales/HR.yaml
 #   - models/finance/Finance.yaml
 

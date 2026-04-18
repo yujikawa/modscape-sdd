@@ -1,0 +1,452 @@
+version: 2.0.0
+tables:
+  - id: stg_billing_subscriptions
+    conceptual:
+      name: Billing Subscriptions (Staging)
+      kind: table
+      description: Raw billing.subscriptions を型変換・NULL補完したステージング層。annual_price_usd が NULL の場合は monthly_price_usd × 12 でフォールバック済み。
+      tags:
+        - WHAT
+    physical:
+      name: 02_stg__billing_subscriptions.csv
+      strategy: table
+    display:
+      icon: 🧹
+    columns:
+      - id: subscription_id
+        name: Subscription ID
+        type: String
+        isPrimaryKey: true
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isForeignKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+      - id: status
+        name: Status
+        type: String
+        description: active | cancelled
+      - id: billing_cycle
+        name: Billing Cycle
+        type: String
+        description: monthly | annual
+      - id: monthly_price_usd
+        name: Monthly Price (USD)
+        type: Decimal
+      - id: annual_price_usd
+        name: Annual Price (USD)
+        type: Decimal
+        description: NULL の場合は monthly_price_usd × 12 でフォールバック済み
+        expression: COALESCE(annual_price_usd, monthly_price_usd * 12)
+      - id: start_date
+        name: Start Date
+        type: Date
+      - id: cancelled_date
+        name: Cancelled Date
+        type: Date
+      - id: trial_start_date
+        name: Trial Start Date
+        type: Date
+      - id: trial_end_date
+        name: Trial End Date
+        type: Date
+      - id: loaded_at
+        name: Loaded At
+        type: Timestamp
+    sampleData:
+      - - sub_001
+        - cus_A1
+        - plan_pro
+        - active
+        - monthly
+        - 49
+        - 588
+        - '2024-01-15'
+        - null
+        - '2024-01-01'
+        - '2024-01-14'
+        - '2024-03-01T12:00:00Z'
+      - - sub_002
+        - cus_A2
+        - plan_pro
+        - active
+        - annual
+        - 49
+        - 490
+        - '2024-02-01'
+        - null
+        - null
+        - null
+        - '2024-02-01T10:30:00Z'
+      - - sub_007
+        - cus_A7
+        - plan_enterprise
+        - active
+        - annual
+        - 199
+        - 2388
+        - '2023-12-01'
+        - null
+        - null
+        - null
+        - '2024-01-15T10:00:00Z'
+  - id: fct_subscription_events
+    conceptual:
+      name: Subscription Events
+      kind: fact
+      description: サブスクリプションのイベント（新規・解約・トライアル転換）と arr_amount を記録（AC-002）。
+      tags:
+        - WHAT
+        - WHEN
+        - HOW_MUCH
+    physical:
+      name: 04_fct__subscription_events.csv
+      strategy: incremental
+      update_mode: merge
+      merge_key:
+        - event_id
+      partition:
+        field: event_date
+        granularity: day
+    display:
+      icon: ⚡
+    columns:
+      - id: event_id
+        name: Event ID
+        type: String
+        isPrimaryKey: true
+      - id: subscription_id
+        name: Subscription ID
+        type: String
+        isForeignKey: true
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isForeignKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+      - id: event_date
+        name: Event Date
+        type: Date
+        isPartitionKey: true
+      - id: event_type
+        name: Event Type
+        type: String
+        description: new_subscription | cancellation | trial_conversion | plan_upgrade
+      - id: billing_cycle
+        name: Billing Cycle
+        type: String
+      - id: mrr_amount
+        name: MRR Amount (USD)
+        type: Decimal
+        additivity: fully
+      - id: arr_amount
+        name: ARR Amount (USD)
+        type: Decimal
+        description: annual の場合のみ annual_price_usd。monthly は NULL (AC-002)
+        additivity: fully
+      - id: mrr_delta
+        name: MRR Delta (USD)
+        type: Decimal
+        description: 新規は +mrr_amount、解約は -mrr_amount
+        additivity: fully
+      - id: country_code
+        name: Country Code
+        type: String
+    sampleData:
+      - - evt_001
+        - sub_001
+        - cus_A1
+        - plan_pro
+        - '2024-01-15'
+        - new_subscription
+        - monthly
+        - 49
+        - null
+        - 49
+        - JP
+      - - evt_002
+        - sub_002
+        - cus_A2
+        - plan_pro
+        - '2024-02-01'
+        - new_subscription
+        - annual
+        - 40.83
+        - 490
+        - 40.83
+        - US
+      - - evt_004
+        - sub_004
+        - cus_A4
+        - plan_pro
+        - '2024-03-15'
+        - cancellation
+        - monthly
+        - 49
+        - null
+        - -49
+        - US
+  - id: mart_arr
+    conceptual:
+      name: ARR Snapshot
+      kind: mart
+      description: 年次 ARR スナップショット。plan × country 粒度（AC-003）。Revenue Dashboard の ARR トレンド表示に使用。
+      tags:
+        - HOW_MUCH
+        - WHEN
+    logical:
+      name: Annual Recurring Revenue by Plan & Country
+      grain:
+        - year_key
+        - plan_id
+        - country_code
+    physical:
+      name: 05_mart__arr.csv
+      strategy: table
+      measures:
+        - column: total_arr_usd
+          agg: sum
+          source_column: fct_subscription_events.arr_amount
+        - column: active_subscription_count
+          agg: count_distinct
+          source_column: fct_subscription_events.subscription_hk
+    display:
+      icon: 📈
+    columns:
+      - id: year_key
+        name: Year
+        type: String
+        description: YYYY 形式
+        isPrimaryKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+        isPrimaryKey: true
+      - id: country_code
+        name: Country Code
+        type: String
+        isPrimaryKey: true
+      - id: active_subscription_count
+        name: Active Subscriptions
+        type: Int
+        additivity: fully
+      - id: total_arr_usd
+        name: Total ARR (USD)
+        type: Decimal
+        additivity: fully
+      - id: avg_arr_per_subscription_usd
+        name: Avg ARR per Subscription (USD)
+        type: Decimal
+        additivity: non
+      - id: snapshot_date
+        name: Snapshot Date
+        type: Date
+    sampleData:
+      - - '2024'
+        - plan_pro
+        - US
+        - 1
+        - 490
+        - 490
+        - '2024-12-31'
+      - - '2024'
+        - plan_enterprise
+        - US
+        - 1
+        - 1990
+        - 1990
+        - '2024-12-31'
+      - - '2024'
+        - plan_enterprise
+        - DE
+        - 1
+        - 2388
+        - 2388
+        - '2024-12-31'
+  - id: dim_subscriptions
+    conceptual:
+      name: Subscriptions
+      kind: dimension
+      description: サブスクリプションのディメンションテーブル。billing_cycle と annual_price_usd を保持する（AC-001）。
+      tags:
+        - WHO
+        - WHAT
+    logical:
+      scd:
+        type: type1
+        business_key:
+          - subscription_id
+    physical:
+      name: 03_dim__subscriptions.csv
+      strategy: table
+    display:
+      icon: 📋
+    columns:
+      - id: subscription_id
+        name: Subscription ID
+        type: String
+        isPrimaryKey: true
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isForeignKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+      - id: status
+        name: Status
+        type: String
+        description: active | cancelled
+      - id: billing_cycle
+        name: Billing Cycle
+        type: String
+        description: monthly | annual (AC-001)
+      - id: annual_price_usd
+        name: Annual Price (USD)
+        type: Decimal
+        description: NULL の場合はフォールバック済みの値（AC-001, AC-005）
+      - id: mrr_amount
+        name: MRR Amount (USD)
+        type: Decimal
+        description: annual の場合は annual_price_usd / 12
+        additivity: fully
+      - id: start_date
+        name: Start Date
+        type: Date
+      - id: cancelled_date
+        name: Cancelled Date
+        type: Date
+      - id: country_code
+        name: Country Code
+        type: String
+    sampleData:
+      - - sub_001
+        - cus_A1
+        - plan_pro
+        - active
+        - monthly
+        - 588
+        - 49
+        - '2024-01-15'
+        - null
+        - JP
+      - - sub_002
+        - cus_A2
+        - plan_pro
+        - active
+        - annual
+        - 490
+        - 40.83
+        - '2024-02-01'
+        - null
+        - US
+      - - sub_007
+        - cus_A7
+        - plan_enterprise
+        - active
+        - annual
+        - 2388
+        - 199
+        - '2023-12-01'
+        - null
+        - DE
+relationships: []
+lineage:
+  - id: lin_stg_fct
+    from: stg_billing_subscriptions
+    to: fct_subscription_events
+    join_type: none
+    description: ステージングからイベント生成
+  - id: lin_fct_mart
+    from: fct_subscription_events
+    to: mart_arr
+    join_type: none
+    description: annual イベントを plan × country 粒度で集計
+  - id: lin_mart_dash
+    from: mart_arr
+    to: revenue_dashboard
+    description: ARR トレンドをダッシュボードに供給
+  - id: lin_stg_dim
+    from: stg_billing_subscriptions
+    to: dim_subscriptions
+  - id: lin_dim_fct
+    from: dim_subscriptions
+    to: fct_subscription_events
+domains:
+  - id: staging_domain
+    name: Staging
+    members:
+      - stg_billing_subscriptions
+    display:
+      color: rgba(34,197,94,0.1)
+  - id: core_domain
+    name: Core
+    members:
+      - fct_subscription_events
+      - dim_subscriptions
+    display:
+      color: rgba(234,179,8,0.1)
+  - id: mart_domain
+    name: Mart
+    members:
+      - mart_arr
+    display:
+      color: rgba(59,130,246,0.1)
+  - id: dashboards_domain
+    name: Dashboards
+    members:
+      - revenue_dashboard
+    display:
+      color: rgba(139,92,246,0.1)
+consumers:
+  - id: revenue_dashboard
+    name: Revenue Dashboard
+    description: Finance チーム向け ARR トレンドダッシュボード
+    display:
+      icon: 📊
+annotations: []
+layout:
+  stg_billing_subscriptions:
+    x: 113
+    'y': 186
+    parentId: staging_domain
+  staging_domain:
+    x: -75
+    'y': -72
+    width: 376
+    height: 489
+  dim_subscriptions:
+    x: 586
+    'y': 243
+    parentId: core_domain
+  fct_subscription_events:
+    x: 906
+    'y': 243
+    parentId: core_domain
+  core_domain:
+    x: 398
+    'y': -16
+    width: 696
+    height: 489
+  mart_arr:
+    x: 1420
+    'y': 186
+    parentId: mart_domain
+  mart_domain:
+    x: 1232
+    'y': -76
+    width: 376
+    height: 496
+  revenue_dashboard:
+    x: 1884
+    'y': 186
+    parentId: dashboards_domain
+  dashboards_domain:
+    x: 1696
+    'y': 76
+    width: 376
+    height: 193

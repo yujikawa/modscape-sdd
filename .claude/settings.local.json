@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(modscape table *)",
+      "Bash(modscape spec *)",
+      "Bash(modscape consumer *)",
+      "Bash(modscape lineage *)",
+      "Bash(modscape validate *)",
+      "Bash(modscape domain *)"
+    ]
+  }
+}

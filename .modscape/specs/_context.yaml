@@ -1,0 +1,34 @@
+tables:
+  stg_billing_subscriptions:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+  dim_subscriptions:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+  fct_subscription_events:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+  mart_arr:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+
+decisions:
+  - id: D-001
+    summary: "annual_price_usd NULL は monthly_price_usd × 12 でフォールバック（Staging 層で処理）"
+    date: 2026-04-18
+    affects: [stg_billing_subscriptions, dim_subscriptions, fct_subscription_events, mart_arr]
+    change: annual-billing
+  - id: D-002
+    summary: "mart_arr の粒度は年次スナップショット（year_key × plan_id × country_code）のみ。月次 ARR 追跡なし"
+    date: 2026-04-18
+    affects: [mart_arr]
+    change: annual-billing
+  - id: D-003
+    summary: "country_code はソース未実装。来期のシステム開発で追加予定（現在は NULL）"
+    date: 2026-04-18
+    affects: [dim_subscriptions, fct_subscription_events, mart_arr]
+    change: annual-billing

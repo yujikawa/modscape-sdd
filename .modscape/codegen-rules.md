@@ -24,24 +24,26 @@ In dbt this becomes `{{ ref('stg_orders') }}`. In SQLMesh, `MODEL (... grain [..
 
 ## 2. Materialization Strategy
 
-Map `implementation.materialization` directly to your target tool's config block. If `implementation` is absent, fall back to `appearance.type` as a hint:
+Map `physical.strategy` directly to your target tool's config block. If `physical` is absent, fall back to `conceptual.kind` as a hint:
 
-| `appearance.type` | Default materialization |
-|-------------------|------------------------|
-| `fact`            | `incremental`          |
-| `dimension`       | `table`                |
-| `mart`            | `table`                |
-| `hub` / `link` / `satellite` | `table`   |
-| `table` / `staging` | `view`               |
+| `conceptual.kind` | Default strategy |
+|-------------------|-----------------|
+| `fact`            | `incremental`   |
+| `dimension`       | `table`         |
+| `mart`            | `table`         |
+| `hub` / `link` / `satellite` | `table` |
+| `table` / `staging` | `view`        |
 
 ```yaml
 # Explicit — always prefer this over the default
-implementation:
-  materialization: incremental
-  incremental_strategy: merge
-  unique_key: order_id
-  partition_by: { field: order_date, granularity: day }
-  cluster_by: [customer_id]
+physical:
+  strategy: incremental
+  update_mode: merge
+  merge_key: order_id
+  partition:
+    field: order_date
+    granularity: day
+  cluster: [customer_id]
 ```
 
 ---
@@ -51,7 +53,7 @@ implementation:
 Derive JOIN keys from two sources:
 
 1. **`relationships`** — explicit FK links between tables
-2. **`columns[].logical.isForeignKey: true`** — columns that carry FK values
+2. **`columns[].isForeignKey: true`** — columns that carry FK values
 
 Use matching column names across tables to infer the ON clause. When a column is `isForeignKey: true` and shares a name with another table's `isPrimaryKey: true` column, that is the join key.
 
@@ -59,26 +61,30 @@ Use matching column names across tables to infer the ON clause. When a column is
 
 ## 4. SCD Type 2
 
-When `appearance.scd: type2`, the dimension requires historical tracking:
+When `logical.scd.type: type2`, the dimension requires historical tracking:
 
 - In **dbt**: generate a snapshot (`dbt snapshot`) driven by the `updated_at` column, then build the dimension model on top of the snapshot.
 - In other tools: apply the equivalent row-versioning pattern.
-- Always expose `valid_from`, `valid_to`, and `is_current` columns (defined in the YAML).
+- Use `logical.scd.valid_from` / `logical.scd.valid_to` as the effective date range columns.
+- Use `logical.scd.current_flag` as the active-record boolean flag if set.
+- Use `logical.scd.business_key` as the natural key for the MERGE/snapshot JOIN condition.
 - When joining to a SCD type2 dimension from a fact table, filter `WHERE is_current = true` unless the query is point-in-time.
 
 ---
 
 ## 5. Mart Aggregations
 
-When `implementation.grain` and `implementation.measures` are defined, use them directly:
+When `logical.grain` and `physical.measures` are defined, use them directly:
 
 ```yaml
-implementation:
-  grain: [month_key, region_id]       # → GROUP BY
+logical:
+  grain: [month_key, region_id]         # → GROUP BY
+
+physical:
   measures:
     - column: total_revenue
       agg: sum
-      source_column: fct_sales.amount  # → SUM(s.amount) AS total_revenue
+      source_column: fct_sales.amount   # → SUM(s.amount) AS total_revenue
     - column: order_count
       agg: count_distinct
       source_column: fct_orders.order_id
@@ -96,7 +102,7 @@ When `grain`/`measures` are **not** defined, infer from column metadata:
 
 | YAML field | Code generation use |
 |-----------|-------------------|
-| `logical.name` | Column alias / documentation |
+| `name` | Column alias / documentation |
 | `physical.name` | Actual column name in SQL (use this if present, otherwise use `id`) |
 | `isPrimaryKey: true` | Declare as primary key constraint or unique test |
 | `isForeignKey: true` | JOIN key candidate |
@@ -125,7 +131,7 @@ Common TODO patterns:
 
 ## 8. Physical Table Names
 
-When `physical_name` is set on a table, use it as the actual table name in DDL or config blocks. The `id` field is the logical reference name used in `ref()` calls and the `lineage` section.
+When `physical.name` is set on a table, use it as the actual table name in DDL or config blocks. The `id` field is the logical reference name used in `ref()` calls and the `lineage` section.
 
 ---
 

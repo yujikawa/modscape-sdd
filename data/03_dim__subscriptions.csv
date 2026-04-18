@@ -1,0 +1,11 @@
+subscription_id,customer_id,plan_id,status,billing_cycle,annual_price_usd,mrr_amount,start_date,cancelled_date,country_code
+sub_001,cus_A1,plan_pro,active,monthly,,49.0,2024-01-15,,
+sub_002,cus_A2,plan_pro,active,annual,490.0,40.83,2024-02-01,,
+sub_003,cus_A3,plan_starter,active,monthly,,19.0,2024-01-20,,
+sub_004,cus_A4,plan_pro,cancelled,monthly,,49.0,2024-01-10,,
+sub_005,cus_A5,plan_enterprise,active,annual,1990.0,165.83,2024-01-05,,
+sub_006,cus_A6,plan_starter,active,monthly,,19.0,2024-02-10,,
+sub_007,cus_A7,plan_enterprise,active,annual,2388.0,199.0,2023-12-01,,
+sub_008,cus_A8,plan_pro,active,monthly,,49.0,2024-03-01,,
+sub_009,cus_A9,plan_pro,cancelled,annual,490.0,40.83,2024-01-20,,
+sub_010,cus_A10,plan_starter,active,annual,190.0,15.83,2024-03-05,,
