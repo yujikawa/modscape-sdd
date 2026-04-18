@@ -6,7 +6,12 @@
       "Bash(modscape consumer *)",
       "Bash(modscape lineage *)",
       "Bash(modscape validate *)",
-      "Bash(modscape domain *)"
+      "Bash(modscape domain *)",
+      "Bash(modscape extract *)",
+      "Bash(modscape migrate *)",
+      "Bash(modscape --help)",
+      "Bash(modscape relationship *)",
+      "Bash(modscape merge *)"
     ]
   }
 }

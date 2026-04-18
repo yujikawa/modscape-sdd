@@ -17,7 +17,9 @@ Revenue Dashboard の ARR トレンド表示に使用（AC-004）。
 - `snapshot_date` は各年の 12/31
 
 ## Known Issues / Caveats
-- `country_code` は現在 NULL のため、plan 単位での集計になっている。来期追加予定（Q-003）
+- `country_code` は `fct_subscription_events` 経由で dim_customers から補完済み（D-003 解決済み）
+- 上位互換として `mart_revenue_summary` が新設された。後方互換のため本テーブルは維持
 
 ## Changelog
 - 2026-04-18: Initial version (SDD: annual-billing)
+- 2026-04-18: Referenced in downstream lineage; no structural change required (SDD: dimension-expansion)

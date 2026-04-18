@@ -1,0 +1,11 @@
+year_key,month_key,plan_tier,plan_category,country_code,customer_segment,active_subscriptions,total_mrr_usd,total_arr_usd
+2023,2023-12,Enterprise,Sales-Assisted,DE,Enterprise,1,199.0,2388.0
+2024,2024-01,Enterprise,Sales-Assisted,US,Enterprise,1,165.83,1990.0
+2024,2024-01,Pro,Sales-Assisted,JP,SMB,1,49.0,0.0
+2024,2024-01,Pro,Sales-Assisted,US,Mid-Market,1,40.83,490.0
+2024,2024-01,Pro,Sales-Assisted,US,SMB,1,49.0,0.0
+2024,2024-01,Starter,Self-Service,JP,SMB,1,19.0,0.0
+2024,2024-02,Pro,Sales-Assisted,US,Mid-Market,1,40.83,490.0
+2024,2024-02,Starter,Self-Service,JP,SMB,1,19.0,0.0
+2024,2024-03,Pro,Sales-Assisted,JP,Mid-Market,1,49.0,0.0
+2024,2024-03,Starter,Self-Service,JP,SMB,1,15.83,190.0

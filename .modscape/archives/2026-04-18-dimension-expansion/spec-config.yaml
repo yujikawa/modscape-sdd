@@ -1,0 +1,10 @@
+main_yamls:
+  - path: main-model.yaml
+    tables:
+      - stg_customers
+      - stg_plans
+      - dim_customers
+      - dim_plans
+      - fct_subscription_events
+      - mart_revenue_summary
+      - mart_arr

@@ -1,5 +1,5 @@
 year_key,plan_id,country_code,active_subscription_count,total_arr_usd,avg_arr_per_subscription_usd,snapshot_date
-2023,plan_enterprise,,1,2388.0,2388.0,2023-12-31
-2024,plan_enterprise,,1,1990.0,1990.0,2024-12-31
-2024,plan_pro,,2,980.0,490.0,2024-12-31
-2024,plan_starter,,1,190.0,190.0,2024-12-31
+2023,plan_enterprise,DE,1,2388.0,2388.0,2023-12-31
+2024,plan_enterprise,US,1,1990.0,1990.0,2024-12-31
+2024,plan_pro,US,2,980.0,490.0,2024-12-31
+2024,plan_starter,JP,1,190.0,190.0,2024-12-31

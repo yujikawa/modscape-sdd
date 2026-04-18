@@ -1,13 +1,16 @@
 -- fct_subscription_events
--- Sources : stg_billing_subscriptions (CTE), dim_subscriptions (LEFT JOIN)
+-- Sources : stg_billing_subscriptions, dim_subscriptions (LEFT JOIN),
+--           dim_customers (LEFT JOIN), dim_plans (LEFT JOIN)
 -- Output  : 04_fct__subscription_events.csv
 -- AC-002  : arr_amount は annual のみ。monthly は NULL
+-- AC-003  : dim_customers・dim_plans を JOIN して属性を補完
+-- AC-005  : country_code を dim_customers から補完（D-003 解決）
 
 CREATE TABLE IF NOT EXISTS fct_subscription_events AS
 WITH stg AS (
     SELECT * FROM stg_billing_subscriptions
 ),
-dim AS (
+dim_sub AS (
     SELECT subscription_id, country_code FROM dim_subscriptions
 ),
 
@@ -40,9 +43,14 @@ new_events AS (
                  ELSE stg.monthly_price_usd
             END,
         2)                                                   AS mrr_delta,
-        dim.country_code
+        COALESCE(dc.country_code, dim_sub.country_code)      AS country_code,  -- AC-005
+        dc.customer_segment,                                 -- AC-003
+        dp.plan_tier,                                        -- AC-003
+        dp.plan_category                                     -- AC-003
     FROM stg
-    LEFT JOIN dim ON stg.subscription_id = dim.subscription_id
+    LEFT JOIN dim_sub      ON stg.subscription_id = dim_sub.subscription_id
+    LEFT JOIN dim_customers dc ON stg.customer_id  = dc.customer_id
+    LEFT JOIN dim_plans     dp ON stg.plan_id       = dp.plan_id
 ),
 
 -- 解約イベント
@@ -71,9 +79,14 @@ cancel_events AS (
                  ELSE stg.monthly_price_usd
             END,
         2)                                                   AS mrr_delta,
-        dim.country_code
+        COALESCE(dc.country_code, dim_sub.country_code)      AS country_code,
+        dc.customer_segment,
+        dp.plan_tier,
+        dp.plan_category
     FROM stg
-    LEFT JOIN dim ON stg.subscription_id = dim.subscription_id
+    LEFT JOIN dim_sub      ON stg.subscription_id = dim_sub.subscription_id
+    LEFT JOIN dim_customers dc ON stg.customer_id  = dc.customer_id
+    LEFT JOIN dim_plans     dp ON stg.plan_id       = dp.plan_id
     WHERE stg.cancelled_date IS NOT NULL
 )
 

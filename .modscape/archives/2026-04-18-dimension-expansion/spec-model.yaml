@@ -1,0 +1,632 @@
+version: 2.0.0
+domains:
+  - id: staging_domain
+    name: Staging
+    display:
+      color: rgba(16,185,129,0.1)
+    members:
+      - stg_customers
+      - stg_plans
+  - id: dim_domain
+    name: Dimensions
+    display:
+      color: rgba(249,115,22,0.1)
+    members:
+      - dim_customers
+      - dim_plans
+  - id: core_domain
+    name: Core
+    display:
+      color: rgba(234,179,8,0.1)
+    members:
+      - fct_subscription_events
+  - id: mart_domain
+    name: Mart
+    display:
+      color: rgba(59,130,246,0.1)
+    members:
+      - mart_arr
+      - mart_revenue_summary
+tables:
+  - id: stg_customers
+    conceptual:
+      name: Customers (Staging)
+      kind: staging
+      description: raw_customers.csv を型変換・NULL チェックしたステージング層。
+    physical:
+      name: 06_stg__customers.csv
+      strategy: table
+    columns:
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isPrimaryKey: true
+      - id: customer_name
+        name: Customer Name
+        type: String
+      - id: country_code
+        name: Country Code
+        type: String
+      - id: customer_segment
+        name: Customer Segment
+        type: String
+        description: SMB | Mid-Market | Enterprise
+      - id: industry
+        name: Industry
+        type: String
+      - id: created_at
+        name: Created At
+        type: Timestamp
+      - id: loaded_at
+        name: Loaded At
+        type: Timestamp
+    metadata:
+      tags:
+        - WHO
+    sampleData:
+      - - cus_A1
+        - Sakura Tech
+        - JP
+        - SMB
+        - Software
+        - '2023-12-01 09:00:00'
+        - '2026-04-18 00:00:00'
+      - - cus_A2
+        - Acme Corp
+        - US
+        - Mid-Market
+        - Retail
+        - '2024-01-15 10:00:00'
+        - '2026-04-18 00:00:00'
+      - - cus_A7
+        - Euro Systems
+        - DE
+        - Enterprise
+        - Manufacturing
+        - '2023-11-15 10:00:00'
+        - '2026-04-18 00:00:00'
+  - id: stg_plans
+    conceptual:
+      name: Plans (Staging)
+      kind: staging
+      description: raw_plans.csv を型変換・NULL チェックしたステージング層。
+    physical:
+      name: 07_stg__plans.csv
+      strategy: table
+    columns:
+      - id: plan_id
+        name: Plan ID
+        type: String
+        isPrimaryKey: true
+      - id: plan_name
+        name: Plan Name
+        type: String
+      - id: plan_tier
+        name: Plan Tier
+        type: String
+        description: Starter | Pro | Enterprise
+      - id: plan_category
+        name: Plan Category
+        type: String
+        description: Self-Service | Sales-Assisted
+      - id: base_monthly_price_usd
+        name: Base Monthly Price (USD)
+        type: Decimal
+      - id: base_annual_price_usd
+        name: Base Annual Price (USD)
+        type: Decimal
+      - id: max_seats
+        name: Max Seats
+        type: Int
+      - id: created_at
+        name: Created At
+        type: Timestamp
+      - id: loaded_at
+        name: Loaded At
+        type: Timestamp
+    metadata:
+      tags:
+        - WHAT
+    sampleData:
+      - - plan_starter
+        - Starter
+        - Starter
+        - Self-Service
+        - 19
+        - 190
+        - 5
+        - '2023-01-01 00:00:00'
+        - '2026-04-18 00:00:00'
+      - - plan_pro
+        - Pro
+        - Pro
+        - Sales-Assisted
+        - 49
+        - 490
+        - 20
+        - '2023-01-01 00:00:00'
+        - '2026-04-18 00:00:00'
+      - - plan_enterprise
+        - Enterprise
+        - Enterprise
+        - Sales-Assisted
+        - 199
+        - 1990
+        - 999
+        - '2023-01-01 00:00:00'
+        - '2026-04-18 00:00:00'
+  - id: dim_customers
+    conceptual:
+      name: Customers
+      kind: dimension
+      description: 顧客マスタディメンション。country_code と customer_segment を保存（AC-001、D-003 解決）。
+    physical:
+      name: 08_dim__customers.csv
+      strategy: table
+    columns:
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isPrimaryKey: true
+      - id: customer_name
+        name: Customer Name
+        type: String
+      - id: country_code
+        name: Country Code
+        type: String
+        description: ISO 2文字コード（JP / US / DE 等）。D-003 の解決カラム
+      - id: customer_segment
+        name: Customer Segment
+        type: String
+        description: SMB | Mid-Market | Enterprise
+      - id: industry
+        name: Industry
+        type: String
+      - id: created_at
+        name: Created At
+        type: Timestamp
+    metadata:
+      tags:
+        - WHO
+        - WHERE
+    sampleData:
+      - - cus_A1
+        - Sakura Tech
+        - JP
+        - SMB
+        - Software
+        - '2023-12-01 09:00:00'
+      - - cus_A2
+        - Acme Corp
+        - US
+        - Mid-Market
+        - Retail
+        - '2024-01-15 10:00:00'
+      - - cus_A7
+        - Euro Systems
+        - DE
+        - Enterprise
+        - Manufacturing
+        - '2023-11-15 10:00:00'
+  - id: dim_plans
+    conceptual:
+      name: Plans
+      kind: dimension
+      description: プランマスタディメンション。plan_tier と plan_category を保存（AC-002）。
+    physical:
+      name: 09_dim__plans.csv
+      strategy: table
+    columns:
+      - id: plan_id
+        name: Plan ID
+        type: String
+        isPrimaryKey: true
+      - id: plan_name
+        name: Plan Name
+        type: String
+      - id: plan_tier
+        name: Plan Tier
+        type: String
+        description: Starter | Pro | Enterprise
+      - id: plan_category
+        name: Plan Category
+        type: String
+        description: Self-Service | Sales-Assisted
+      - id: base_monthly_price_usd
+        name: Base Monthly Price (USD)
+        type: Decimal
+      - id: base_annual_price_usd
+        name: Base Annual Price (USD)
+        type: Decimal
+    metadata:
+      tags:
+        - WHAT
+    sampleData:
+      - - plan_starter
+        - Starter
+        - Starter
+        - Self-Service
+        - 19
+        - 190
+      - - plan_pro
+        - Pro
+        - Pro
+        - Sales-Assisted
+        - 49
+        - 490
+      - - plan_enterprise
+        - Enterprise
+        - Enterprise
+        - Sales-Assisted
+        - 199
+        - 1990
+  - id: fct_subscription_events
+    conceptual:
+      name: Subscription Events
+      kind: fact
+      description: サブスクリプションのイベント（新規・解約・トライアル転換）。dim_customers・dim_plans FK 追加（AC-003、AC-005）。
+    physical:
+      name: 04_fct__subscription_events.csv
+      strategy: table
+    columns:
+      - id: event_id
+        name: Event ID
+        type: String
+        isPrimaryKey: true
+      - id: subscription_id
+        name: Subscription ID
+        type: String
+        isForeignKey: true
+      - id: customer_id
+        name: Customer ID
+        type: String
+        isForeignKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+        isForeignKey: true
+      - id: event_date
+        name: Event Date
+        type: Date
+        isPartitionKey: true
+      - id: event_type
+        name: Event Type
+        type: String
+        description: new_subscription | cancellation | trial_conversion | plan_upgrade
+      - id: billing_cycle
+        name: Billing Cycle
+        type: String
+      - id: mrr_amount
+        name: MRR Amount (USD)
+        type: Decimal
+        additivity: fully
+      - id: arr_amount
+        name: ARR Amount (USD)
+        type: Decimal
+        description: annual の場合のみ。monthly は NULL
+        additivity: fully
+      - id: mrr_delta
+        name: MRR Delta (USD)
+        type: Decimal
+        additivity: fully
+      - id: country_code
+        name: Country Code
+        type: String
+        description: dim_customers から補完（AC-005、D-003 解決）
+      - id: customer_segment
+        name: Customer Segment
+        type: String
+        description: dim_customers から補完（AC-003）
+      - id: plan_tier
+        name: Plan Tier
+        type: String
+        description: dim_plans から補完（AC-003）
+      - id: plan_category
+        name: Plan Category
+        type: String
+        description: dim_plans から補完（AC-003）
+    metadata:
+      tags:
+        - WHAT
+        - WHEN
+        - HOW_MUCH
+    sampleData:
+      - - evt_001
+        - sub_001
+        - cus_A1
+        - plan_pro
+        - '2024-01-15'
+        - new_subscription
+        - monthly
+        - 49
+        - null
+        - 49
+        - JP
+        - SMB
+        - Pro
+        - Sales-Assisted
+      - - evt_002
+        - sub_002
+        - cus_A2
+        - plan_pro
+        - '2024-02-01'
+        - new_subscription
+        - annual
+        - 40.83
+        - 490
+        - 40.83
+        - US
+        - Mid-Market
+        - Pro
+        - Sales-Assisted
+      - - evt_004
+        - sub_004
+        - cus_A4
+        - plan_pro
+        - '2024-03-15'
+        - cancellation
+        - monthly
+        - 49
+        - null
+        - -49
+        - US
+        - SMB
+        - Pro
+        - Sales-Assisted
+  - id: mart_arr
+    conceptual:
+      name: ARR Snapshot
+      kind: mart
+      description: 年次 ARR スナップショット。plan × country 粒度（後方互換のため維持）。
+    physical:
+      name: 05_mart__arr.csv
+      strategy: table
+    columns:
+      - id: year_key
+        name: Year
+        type: String
+        isPrimaryKey: true
+      - id: plan_id
+        name: Plan ID
+        type: String
+        isPrimaryKey: true
+      - id: country_code
+        name: Country Code
+        type: String
+        isPrimaryKey: true
+      - id: active_subscription_count
+        name: Active Subscriptions
+        type: Int
+        additivity: fully
+      - id: total_arr_usd
+        name: Total ARR (USD)
+        type: Decimal
+        additivity: fully
+      - id: avg_arr_per_subscription_usd
+        name: Avg ARR per Subscription (USD)
+        type: Decimal
+        additivity: non
+      - id: snapshot_date
+        name: Snapshot Date
+        type: Date
+    metadata:
+      tags:
+        - HOW_MUCH
+        - WHEN
+    sampleData:
+      - - '2024'
+        - plan_pro
+        - US
+        - 1
+        - 490
+        - 490
+        - '2024-12-31'
+      - - '2024'
+        - plan_enterprise
+        - US
+        - 1
+        - 1990
+        - 1990
+        - '2024-12-31'
+      - - '2024'
+        - plan_enterprise
+        - DE
+        - 1
+        - 2388
+        - 2388
+        - '2024-12-31'
+  - id: mart_revenue_summary
+    conceptual:
+      name: Revenue Summary
+      kind: mart
+      description: 多軸 ARR/MRR 集計マート。country × segment × plan_tier 粒度（AC-004）。mart_arr の上位互換。
+    physical:
+      name: 10_mart__revenue_summary.csv
+      strategy: table
+    columns:
+      - id: year_key
+        name: Year
+        type: String
+        isPrimaryKey: true
+      - id: month_key
+        name: Month
+        type: String
+        isPrimaryKey: true
+      - id: plan_tier
+        name: Plan Tier
+        type: String
+        isPrimaryKey: true
+      - id: plan_category
+        name: Plan Category
+        type: String
+      - id: country_code
+        name: Country Code
+        type: String
+        isPrimaryKey: true
+      - id: customer_segment
+        name: Customer Segment
+        type: String
+        isPrimaryKey: true
+      - id: active_subscriptions
+        name: Active Subscriptions
+        type: Int
+        additivity: fully
+      - id: total_mrr_usd
+        name: Total MRR (USD)
+        type: Decimal
+        additivity: fully
+      - id: total_arr_usd
+        name: Total ARR (USD)
+        type: Decimal
+        additivity: fully
+    metadata:
+      tags:
+        - HOW_MUCH
+        - WHEN
+        - WHO
+        - WHERE
+    sampleData:
+      - - '2024'
+        - 2024-01
+        - Pro
+        - Sales-Assisted
+        - JP
+        - SMB
+        - 1
+        - 49
+        - null
+      - - '2024'
+        - 2024-02
+        - Pro
+        - Sales-Assisted
+        - US
+        - Mid-Market
+        - 1
+        - 40.83
+        - 490
+      - - '2024'
+        - 2024-01
+        - Enterprise
+        - Sales-Assisted
+        - US
+        - Enterprise
+        - 1
+        - 165.83
+        - 1990
+lineage:
+  - id: lin_fct_mart_arr
+    from: fct_subscription_events
+    to: mart_arr
+    join_type: none
+    description: annual イベントを plan × country 粒度で集計（後方互換）
+  - id: lin_mart_arr_dash
+    from: mart_arr
+    to: revenue_dashboard
+    description: ARR トレンドをダッシュボードに供給
+  - id: lin_stg_customers_dim
+    from: stg_customers
+    to: dim_customers
+    join_type: none
+    description: 顧客マスタをディメンション化
+  - id: lin_stg_plans_dim
+    from: stg_plans
+    to: dim_plans
+    join_type: none
+    description: プランマスタをディメンション化
+  - id: lin_dim_customers_fct
+    from: dim_customers
+    to: fct_subscription_events
+    join_type: left
+    description: customer_id で JOIN し country_code・customer_segment を補完（AC-003、AC-005）
+  - id: lin_dim_plans_fct
+    from: dim_plans
+    to: fct_subscription_events
+    join_type: left
+    description: plan_id で JOIN し plan_tier・plan_category を補完（AC-003）
+  - id: lin_fct_revenue_summary
+    from: fct_subscription_events
+    to: mart_revenue_summary
+    join_type: none
+    description: 多軸集計マートへ集約（AC-004）
+  - id: lin_revenue_summary_dash
+    from: mart_revenue_summary
+    to: revenue_dashboard
+    description: 多軸 ARR/MRR をダッシュボードに供給
+relationships:
+  - id: rel_fct_dim_customers
+    from:
+      table: fct_subscription_events
+      column: customer_id
+    to:
+      table: dim_customers
+      column: customer_id
+    type: many-to-one
+    description: サブスクリプションイベント → 顧客ディメンション（N:1）
+  - id: rel_fct_dim_plans
+    from:
+      table: fct_subscription_events
+      column: plan_id
+    to:
+      table: dim_plans
+      column: plan_id
+    type: many-to-one
+    description: サブスクリプションイベント → プランディメンション（N:1）
+annotations: []
+layout:
+  staging_domain:
+    x: 0
+    'y': 0
+    width: 600
+    height: 480
+  stg_customers:
+    x: 40
+    'y': 80
+    parentId: staging_domain
+  stg_plans:
+    x: 40
+    'y': 320
+    parentId: staging_domain
+  dim_domain:
+    x: 680
+    'y': 0
+    width: 440
+    height: 480
+  dim_customers:
+    x: 720
+    'y': 80
+    parentId: dim_domain
+  dim_plans:
+    x: 720
+    'y': 320
+    parentId: dim_domain
+  core_domain:
+    x: 1200
+    'y': 160
+    width: 440
+    height: 160
+  fct_subscription_events:
+    x: 1240
+    'y': 200
+    parentId: core_domain
+  mart_domain:
+    x: 1720
+    'y': 0
+    width: 440
+    height: 480
+  mart_arr:
+    x: 1760
+    'y': 80
+    parentId: mart_domain
+  mart_revenue_summary:
+    x: 1760
+    'y': 320
+    parentId: mart_domain
+  revenue_dashboard:
+    x: 2280
+    'y': 200
+consumers:
+  - id: revenue_dashboard
+    name: Revenue Dashboard
+    description: Finance チーム向け ARR/MRR トレンドダッシュボード
+    display:
+      icon: 📊
