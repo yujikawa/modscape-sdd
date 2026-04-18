@@ -195,33 +195,214 @@ The AI merges `spec-model.yaml` into the main model, writes permanent per-table 
 
 ---
 
+## Walkthrough: Dimension Expansion — Customer & Plan Analytics
+
+Building on the annual-billing pipeline, Finance and BI teams needed multi-dimensional revenue analysis — slicing ARR and MRR by customer segment, plan tier, and country.
+
+### Source data
+
+Two new raw CSVs are introduced:
+
+```
+data/02_raw__customers.csv   ← customer master (country_code, segment, industry)
+data/03_raw__plans.csv       ← plan master (tier, category, pricing)
+```
+
+The expanded pipeline produces five additional outputs:
+
+```
+data/06_stg__customers.csv          ← staged customer records
+data/07_stg__plans.csv              ← staged plan records
+data/08_dim__customers.csv          ← customer dimension
+data/09_dim__plans.csv              ← plan dimension
+data/10_mart__revenue_summary.csv   ← multi-axis ARR/MRR summary
+```
+
+---
+
+### Step 1 — Requirements `/modscape:spec:requirements`
+
+**Prompt:**
+```
+既存の ARR パイプラインを拡張して、顧客・プランのディメンションを追加したい。
+ARR/MRR を customer_segment × plan_tier × country_code でスライスできるようにする。
+```
+
+**Output:** `.modscape/changes/dimension-expansion/spec.md`
+
+```markdown
+## Acceptance Criteria
+- [ ] AC-001: dim_customers に country_code と customer_segment が保存される
+- [ ] AC-002: dim_plans に plan_tier と plan_category が保存される
+- [ ] AC-003: fct_subscription_events に customer_segment, plan_tier, plan_category が補完される
+- [ ] AC-004: fct の country_code NULL が dim_customers で解決される
+- [ ] AC-005: mart_revenue_summary で year × month × plan_tier × country_code × customer_segment の粒度で集計できる
+
+## Target Tool
+SQLite + SQL（出力は CSV ファイル）
+```
+
+Questions answered with `/modscape:spec:answer`:
+
+```
+Q-001: customer_id は fct_subscription_events と一致するか？
+→ A: 一致する
+
+Q-002: mart_revenue_summary の粒度は？
+→ A: year × month × plan_tier × country_code × customer_segment で大丈夫
+
+Q-003: fct に dim_customers を JOIN できるか？
+→ A: JOIN できる
+```
+
+---
+
+### Step 2 — Design `/modscape:spec:design dimension-expansion`
+
+**Star schema designed:**
+
+```
+raw_customers ──► stg_customers ──► dim_customers ──┐
+                                                      │ N:1
+raw_plans ──────► stg_plans ────► dim_plans ─────────┤
+                                                      ▼
+                              dim_subscriptions ──► fct_subscription_events
+                              (N:1)                    ├──► mart_arr            (existing)
+                                                       └──► mart_revenue_summary ──► revenue_dashboard
+```
+
+Key design decisions recorded in `design.md`:
+
+| Decision | Rationale |
+|---|---|
+| `country_code` resolved via `dim_customers` JOIN | Not in billing source data; D-003 closed here |
+| `fct_subscription_events` DROP & RECREATE | SQLite cannot ALTER TABLE + UPDATE with JOIN in-place |
+| `mart_revenue_summary` coexists with `mart_arr` | Backward compatibility — existing consumers still reference `mart_arr` (D-004) |
+| dim→fct connections are **relationships** (N:1), not lineage | Lineage = build/data-flow dependency; FK references = relationships |
+
+**Output:** `spec-model.yaml`, `design.md`, `tasks.md`
+
+---
+
+### Step 3 — Implement `/modscape:spec:implement dimension-expansion`
+
+**New files:**
+
+```
+pipeline/sql/
+  06_stg_customers.sql          ← staged customer data
+  07_stg_plans.sql              ← staged plan data with CAST
+  08_dim_customers.sql          ← customer dimension
+  09_dim_plans.sql              ← plan dimension
+  10_mart_revenue_summary.sql   ← multi-axis ARR/MRR mart (year × month × tier × country × segment)
+```
+
+**Updated files:**
+
+```
+pipeline/sql/03_fct_subscription_events.sql   ← DROP & RECREATE with LEFT JOIN dim_customers, dim_plans
+pipeline/sql/05_tests.sql                     ← 9 new assertions added (16 total)
+pipeline/run_pipeline.py                      ← expanded to 9 steps
+```
+
+Key enrichment in `fct_subscription_events`:
+
+```sql
+LEFT JOIN dim_customers dc ON stg.customer_id = dc.customer_id
+LEFT JOIN dim_plans dp ON stg.plan_id = dp.plan_id
+...
+COALESCE(dc.country_code, dim_sub.country_code) AS country_code,  -- AC-004
+dc.customer_segment,                                               -- AC-003
+dp.plan_tier, dp.plan_category                                     -- AC-003
+```
+
+Test results:
+
+```
+Tests: 16 passed, 0 failed
+  [PASS] dim_customers.customer_id: unique
+  [PASS] dim_customers.customer_id: not_null
+  [PASS] dim_customers.country_code: not_null                      ← AC-001
+  [PASS] dim_plans.plan_id: unique
+  [PASS] dim_plans.plan_tier: not_null                             ← AC-002
+  [PASS] fct → dim_customers: no orphan customer_id               ← AC-003
+  [PASS] fct → dim_plans: no orphan plan_id                       ← AC-003
+  [PASS] fct.country_code: not_null after enrichment               ← AC-004
+  [PASS] mart_revenue_summary grain: unique                        ← AC-005
+  ... (7 existing tests from annual-billing)
+```
+
+---
+
+### Step 4 — Archive `/modscape:spec:archive dimension-expansion`
+
+**Permanent specs created / updated:**
+
+```
+.modscape/specs/
+  stg_customers/spec.md          ← new
+  stg_plans/spec.md              ← new
+  dim_customers/spec.md          ← new
+  dim_plans/spec.md              ← new
+  mart_revenue_summary/spec.md   ← new
+  fct_subscription_events/spec.md  ← updated (D-003 resolved, country_code NULL closed)
+  mart_arr/spec.md               ← changelog only (no structural change)
+  _context.yaml                  ← D-003 closed, D-004 and D-005 added
+```
+
+**Work folder archived:**
+
+```
+.modscape/archives/2026-04-18-dimension-expansion/
+  spec.md        ← original requirements
+  design.md      ← design decisions + findings
+  tasks.md       ← completed checklist
+  questions.md   ← all Q&A
+  spec-model.yaml
+```
+
+---
+
 ## Repository Structure
 
 ```
 modscape-sdd/
-├── main-model.yaml              ← Main data model (generated at archive)
+├── main-model.yaml              ← Main data model (9 tables, updated at each archive)
 ├── data/
-│   ├── 01_raw__billing_subscriptions.csv    ← Source
+│   ├── 01_raw__billing_subscriptions.csv    ← Source (annual-billing)
+│   ├── 02_raw__customers.csv                ← Source (dimension-expansion)
+│   ├── 03_raw__plans.csv                    ← Source (dimension-expansion)
 │   ├── 02_stg__billing_subscriptions.csv    ← Staging output
 │   ├── 03_dim__subscriptions.csv            ← Dimension output
-│   ├── 04_fct__subscription_events.csv      ← Fact output
-│   └── 05_mart__arr.csv                     ← Mart output
+│   ├── 04_fct__subscription_events.csv      ← Fact output (enriched)
+│   ├── 05_mart__arr.csv                     ← ARR mart
+│   ├── 06_stg__customers.csv
+│   ├── 07_stg__plans.csv
+│   ├── 08_dim__customers.csv
+│   ├── 09_dim__plans.csv
+│   └── 10_mart__revenue_summary.csv         ← Multi-axis ARR/MRR mart
 ├── pipeline/
 │   ├── run_pipeline.py          ← Entry point: python pipeline/run_pipeline.py
 │   └── sql/
 │       ├── 01_stg_billing_subscriptions.sql
 │       ├── 02_dim_subscriptions.sql
-│       ├── 03_fct_subscription_events.sql
+│       ├── 03_fct_subscription_events.sql   ← DROP & RECREATE with dim enrichment
 │       ├── 04_mart_arr.sql
-│       └── 05_tests.sql
+│       ├── 05_tests.sql                     ← 16 assertions
+│       ├── 06_stg_customers.sql
+│       ├── 07_stg_plans.sql
+│       ├── 08_dim_customers.sql
+│       ├── 09_dim_plans.sql
+│       └── 10_mart_revenue_summary.sql
 └── .modscape/
     ├── rules.md                 ← Modeling conventions
-    ├── specs/                   ← Permanent per-table documentation
-    │   ├── _context.yaml        ← Cross-table decisions
+    ├── specs/                   ← Permanent per-table documentation (9 tables)
+    │   ├── _context.yaml        ← Cross-table decisions (D-001 ~ D-005)
     │   └── <table-id>/spec.md
     ├── changes/                 ← Active work folders (empty after archive)
     └── archives/
-        └── 2026-04-18-annual-billing/   ← Completed spec
+        ├── 2026-04-18-annual-billing/      ← Scenario 1
+        └── 2026-04-18-dimension-expansion/ ← Scenario 2
 ```
 
 ---
