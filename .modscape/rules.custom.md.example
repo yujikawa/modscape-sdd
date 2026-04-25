@@ -1,0 +1,48 @@
+# Data Model Conventions
+#
+# This file extends the base `.modscape/rules.md` with project-specific modeling rules.
+# Rename to `rules.custom.md` to activate (remove the `.example` suffix).
+# Rules defined here take PRIORITY over the base rules when they conflict.
+#
+# Read during: modeling sessions and the SDD design step.
+# Scope: rules about the data model (YAML shape, table/column naming, schema constraints).
+#        For SDD workflow and code generation rules, use modscape-spec.custom.md instead.
+#
+# Delete or comment out any section you don't need to customize.
+
+## Naming Conventions
+
+# Table ID naming rules:
+# - Fact tables:      fct_<event>            e.g., fct_orders
+# - Dimension tables: dim_<entity>           e.g., dim_customers
+# - Mart tables:      mart_<domain>_<metric> e.g., mart_sales_revenue
+# - Staging tables:   stg_<source>_<entity>  e.g., stg_salesforce_accounts
+
+## Allowed Table Types
+
+# Uncomment to restrict which conceptual.kind values are permitted:
+# - This project only uses `fact`, `dimension`, and `mart`.
+# - Do NOT use `hub`, `link`, or `satellite`.
+
+## Domain Topology
+
+# Uncomment to define the fixed domain structure:
+# - This project has the following domains: <domain1>, <domain2>, <domain3>
+# - Every new table MUST be assigned to one of these domains.
+
+## Required Columns
+
+# Uncomment to enforce mandatory columns per table kind:
+# - All fact tables MUST include: id, created_at, updated_at
+# - All dimension tables MUST include: id, is_deleted
+
+## SCD Policy
+
+# Uncomment to set the SCD policy for dimension tables:
+# - Dimension tables use SCD Type 1 only. Do NOT apply scd.type: type2 or higher.
+
+## Tags Policy
+
+# Uncomment to require BEAM* tags on specific table kinds:
+# - All fact tables MUST have at least one of: WHAT, HOW_MUCH, COUNT
+# - All dimension tables MUST have at least one of: WHO, WHERE, WHEN

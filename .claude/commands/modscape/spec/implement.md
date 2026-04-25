@@ -11,14 +11,15 @@ Implement pending tasks from `.modscape/changes/<name>/tasks.md` one by one.
 
 ## Instructions
 
-1. Read `.modscape/changes/modscape-spec.custom.md` if it exists — it contains all project-specific rules including target tool, output directories, naming conventions, and code generation preferences. These rules take **priority** over any defaults.
+1. Read `.modscape/modscape-spec.custom.md` if it exists — it contains all project-specific rules including target tool, output directories, naming conventions, and code generation preferences. These rules take **priority** over any defaults.
    If `.modscape/codegen-rules.md` also exists, read it as supplementary reference.
 
-   **When reading model information, always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+   **When reading model information, always use modscape CLI commands — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
    ```bash
    modscape table list <file>
    modscape table get <file> --id <id>
    modscape lineage list <file>
+   modscape relationship list <file>   # join keys and cardinality between tables
    modscape summary <file> --json
    ```
 
@@ -39,7 +40,7 @@ Implement pending tasks from `.modscape/changes/<name>/tasks.md` one by one.
 
    **Staging / Core / Mart tasks:**
    - If the table ID for this task is in the **Context Only skip list**: output `⏭️ Skipping \`<id>\` (Context Only)` and move to the next task without generating any code.
-   - Otherwise: read the corresponding table definition from `.modscape/changes/<name>/spec-model.yaml` (the work-scoped YAML, NOT the master model.yaml)
+   - Otherwise: read the corresponding table definition from `.modscape/changes/<name>/spec-model.yaml` (the work-scoped YAML, NOT the main model.yaml)
    - Generate implementation code for the target tool (dbt, SQLMesh, etc.)
    - Follow the dependency order defined in `lineage` — always generate upstream tables first
    - Place generated files in the appropriate location (e.g., `models/staging/`, `models/core/`, `models/mart/`)
@@ -51,12 +52,15 @@ Implement pending tasks from `.modscape/changes/<name>/tasks.md` one by one.
 6. After generating code for a task, immediately update the checkbox in `.modscape/changes/<name>/tasks.md`:
    `- [ ]` → `- [x]`
 
-7. After each task, confirm with the user before proceeding:
+7. If during implementation you discover anything that requires human investigation (e.g. unexpected column type, NULL in a column assumed non-null, source record not found), append a question to `.modscape/changes/<name>/questions.md` using the next available Q-NNN ID, then ask the user whether to pause or continue with an assumption:
+   > ⚠ 実装中に不明な点が見つかりました（**Q-NNN** として questions.md に記録しました）。回答を待ちますか、それとも仮定で進めますか？
+
+8. After each task, confirm with the user before proceeding:
    > Task complete. Ready to move on to the next task?
 
 ## Code Generation Guidelines
 
-- Follow `implementation.*` fields in `spec-model.yaml` when present; fall back to `appearance.type` defaults
+- Follow `physical.*` fields in `spec-model.yaml` when present; fall back to `conceptual.kind` defaults
 - Use `{{ ref('table_id') }}` (dbt) or equivalent for upstream references derived from `lineage`
 - Add `-- TODO:` comments where `spec-model.yaml` lacks sufficient information to generate definitive code
 - Keep generated code minimal and correct — do not add logic not supported by the YAML
@@ -69,42 +73,49 @@ For each column in the target table:
   -- expression: "CAST(raw_amount AS DECIMAL(18,2)) * fx_rate"
   CAST(raw_amount AS DECIMAL(18,2)) * fx_rate AS amount
   ```
-- **If `expression` is absent**: derive the expression from `physical.name` → `logical.name` → column `id` (in that priority order), or add a `-- TODO:` comment if none can be resolved.
+- **If `expression` is absent**: derive the expression from `column.physical.name` → `column.name` → column `id` (in that priority order), or add a `-- TODO:` comment if none can be resolved.
 
-### FROM / JOIN clause — `lineage[].join_type`
+### FROM / JOIN clause — `lineage[].join_type` + `relationships`
+
+Before generating any JOIN clause, run:
+```bash
+modscape relationship list .modscape/changes/<name>/spec-model.yaml
+```
+This gives the ON columns and cardinality for every table pair.
 
 For each `lineage` entry where `to` is the current table:
-- **`inner`**: generate `INNER JOIN {{ ref('from_table') }} ON ...`
-- **`left`**: generate `LEFT JOIN {{ ref('from_table') }} ON ...`
-- **`cross`**: generate `CROSS JOIN {{ ref('from_table') }}`
-- **`none`**: reference the table as a CTE only; do not generate a JOIN clause
-- **When omitted**:
-  - If a `relationships` entry exists for the pair → default to `LEFT JOIN` using the relationship columns
-  - Otherwise → treat as `none` (CTE reference)
+1. Look up the `relationships` entry where `from.table` and `to.table` match the lineage pair → use `from.column` / `to.column` as the ON condition
+2. Apply the join type from `lineage[].join_type`:
+   - **`inner`**: `INNER JOIN {{ ref('from_table') }} ON a.col = b.col`
+   - **`left`**: `LEFT JOIN {{ ref('from_table') }} ON a.col = b.col`
+   - **`cross`**: `CROSS JOIN {{ ref('from_table') }}` (no ON clause)
+   - **`none`**: reference as CTE only; do not generate a JOIN clause
+   - **When omitted**: default to `LEFT JOIN` if a relationship exists; otherwise treat as `none`
+3. If no matching `relationship` entry exists for the pair → add `-- TODO: relationship not defined for this join` and record a question in `questions.md`
 
-### WHERE clause — `implementation.incremental_key` / `incremental_lookback`
+### WHERE clause — `physical.filter_key` / `physical.lookback`
 
-When `implementation.materialization: incremental` and `incremental_key` is set:
+When `physical.strategy: incremental` and `physical.filter_key` is set:
 ```sql
-WHERE {{ incremental_key }} > {{ last_run_timestamp() }}
+WHERE {{ filter_key }} > {{ last_run_timestamp() }}
 ```
-If `incremental_lookback` is also set (e.g. `"3 days"`):
+If `physical.lookback` is also set (e.g. `"3 days"`):
 ```sql
-WHERE {{ incremental_key }} > {{ last_run_timestamp() }} - INTERVAL 3 DAY
+WHERE {{ filter_key }} > {{ last_run_timestamp() }} - INTERVAL 3 DAY
 ```
-When `incremental_key` is absent, infer from column names (`updated_at`, `created_at`, `loaded_at`) or add `-- TODO: specify incremental_key`.
+When `filter_key` is absent, infer from column names (`updated_at`, `created_at`, `loaded_at`) or add `-- TODO: specify physical.filter_key`.
 
-### SCD Type2 SQL — `implementation.scd2`
+### SCD Type2 SQL — `logical.scd`
 
-When `appearance.scd: type2` and `implementation.scd2` is set, generate a MERGE/snapshot pattern:
-- Use `scd2.business_key` columns as the JOIN condition to identify existing records
-- Use `scd2.valid_from` / `scd2.valid_to` as the effective date range columns
-- If `scd2.current_flag` is set, include it as a boolean flag for the active record
+When `logical.scd.type: type2`, generate a MERGE/snapshot pattern:
+- Use `logical.scd.business_key` columns as the JOIN condition to identify existing records
+- Use `logical.scd.valid_from` / `logical.scd.valid_to` as the effective date range columns
+- If `logical.scd.current_flag` is set, include it as a boolean flag for the active record
 - For composite `business_key`, build a multi-column JOIN: `ON src.a = tgt.a AND src.b = tgt.b`
 
-When `scd2` is absent but `appearance.scd: type2`:
+When `logical.scd.type: type2` but `business_key`/`valid_from`/`valid_to` are absent:
 - Attempt to infer roles from column names (`valid_from`, `valid_to`, `is_current`, `current_flag`, etc.)
-- Add `-- TODO: set implementation.scd2 to specify column roles` for any unresolved column
+- Add `-- TODO: set logical.scd fields to specify column roles` for any unresolved column
 
 ## If You Discover Issues During Implementation
 

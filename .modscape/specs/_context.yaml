@@ -1,0 +1,6 @@
+# .modscape/specs/_context.yaml
+# Cross-project architectural decisions from SDD interactions.
+# Do NOT store schema info here — that belongs in model.yaml.
+# Q&A is stored in _questions.yaml.
+
+decisions: []
