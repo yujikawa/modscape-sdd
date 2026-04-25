@@ -1,0 +1,26 @@
+{
+  "seed": {
+    "sql_path": "sql/seed",
+    "depends_on": []
+  },
+  "stg_billing__subscriptions": {
+    "sql_path": "sql/staging/stg_billing__subscriptions.sql",
+    "depends_on": ["seed"]
+  },
+  "hub_subscription": {
+    "sql_path": "sql/vault/hub_subscription.sql",
+    "depends_on": ["stg_billing__subscriptions"]
+  },
+  "sat_subscription_status": {
+    "sql_path": "sql/vault/sat_subscription_status.sql",
+    "depends_on": ["stg_billing__subscriptions"]
+  },
+  "fct_subscription_events": {
+    "sql_path": "sql/fact/fct_subscription_events.sql",
+    "depends_on": ["hub_subscription", "sat_subscription_status"]
+  },
+  "mart_arr": {
+    "sql_path": "sql/mart/mart_arr.sql",
+    "depends_on": ["fct_subscription_events"]
+  }
+}

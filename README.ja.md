@@ -126,6 +126,77 @@ sequenceDiagram
 
 ---
 
+## サンドボックス環境
+
+`sandbox/` ディレクトリに **Apache Spark + Apache Iceberg + Apache Airflow** の実行環境が含まれています。SDD で設計したパイプラインを実際に動かして確認できます。
+
+### 構成
+
+| サービス | 役割 | URL |
+|---|---|---|
+| Apache Airflow | パイプライン実行・スケジューリング | http://localhost:8080 |
+| Apache Iceberg | Spark 上のテーブルフォーマット（MinIO に保存） | — |
+| MinIO | S3 互換オブジェクトストレージ | http://localhost:9001 |
+| Jupyter Notebook | インタラクティブな Spark SQL 探索 | http://localhost:8888 |
+
+### 前提条件
+
+**Linux / WSL2:**
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+# 再ログイン後に有効
+```
+
+**macOS (Colima):**
+```bash
+brew install colima docker docker-compose
+colima start --cpu 4 --memory 8 --disk 30
+```
+
+### 起動
+
+```bash
+cd sandbox
+make up      # イメージビルド & 全サービス起動
+make ps      # 状態確認（全サービスが Up になるまで待つ）
+```
+
+### パイプライン実行
+
+```bash
+make trigger     # annual_billing_pipeline DAG を実行
+make query-arr   # mart_arr（ARR スナップショット）を確認
+```
+
+または Airflow UI（http://localhost:8080、admin / admin）から `annual_billing_pipeline` を手動トリガー。
+
+> **初回実行時**: `seed_raw` タスクで PySpark が Maven から JAR を自動ダウンロードします（3〜5 分）。2 回目以降はキャッシュが効くため高速です。
+
+### パイプラインの4フェーズ
+
+```
+seed_raw → stg_billing → core_vault → mart_arr
+```
+
+| フェーズ | Airflow タスク | 内容 |
+|---|---|---|
+| Phase 0 | `seed_raw` | `raw.billing_subscriptions` にサンプルデータを投入 |
+| Phase 1 | `stg_billing` | `stg_billing__subscriptions`（ステージング） |
+| Phase 2 | `core_vault` | `hub_subscription` / `sat_subscription_status` / `fct_subscription_events` |
+| Phase 3 | `mart_arr` | `mart_arr`（grain: year × plan × country） |
+
+`sat_subscription_status` の `billing_cycle`・`annual_price_usd` と `fct_subscription_events` の `arr_amount` は `annual-billing` チェンジの受け入れ条件に対応しています。
+
+### 停止・削除
+
+```bash
+make down        # サービス停止（データは保持）
+make clean       # コンテナ・ボリューム・イメージをすべて削除
+```
+
+---
+
 ## リポジトリ構成
 
 ```
@@ -145,4 +216,11 @@ modscape-sdd/
 │   │   └── <table-id>.md
 │   └── archives/              # 完了した作業フォルダ
 │       └── YYYY-MM-DD-<name>/
+└── sandbox/                   # Spark + Iceberg + Airflow 実行環境
+    ├── docker-compose.yml
+    ├── Makefile
+    ├── airflow/               # Airflow イメージ（Java + PySpark 入り）
+    └── spark/
+        ├── conf/              # Spark カタログ設定
+        └── jobs/              # PySpark ジョブ（パイプライン実装）
 ```
