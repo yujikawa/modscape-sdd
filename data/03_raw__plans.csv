@@ -1,0 +1,4 @@
+plan_id,plan_name,plan_tier,plan_category,base_monthly_price_usd,base_annual_price_usd,max_seats,created_at
+plan_starter,Starter,Starter,Self-Service,19.00,190.00,5,2023-01-01 00:00:00
+plan_pro,Pro,Pro,Sales-Assisted,49.00,490.00,20,2023-01-01 00:00:00
+plan_enterprise,Enterprise,Enterprise,Sales-Assisted,199.00,1990.00,999,2023-01-01 00:00:00

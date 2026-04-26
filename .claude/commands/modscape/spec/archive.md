@@ -142,103 +142,63 @@ modscape summary <file> --json
     > - Updated: `specs/fct_orders/spec.md`
     > - Changelog only: `specs/stg_raw_orders/spec.md`
 
-### Step 4: Merge questions into _questions.yaml
+### Step 4: Sync questions per table
 
-13. If `.modscape/changes/<name>/questions.md` exists (legacy format from older SDD runs):
+13. If `.modscape/changes/<name>/questions.md` exists:
 
-    Read `.modscape/changes/<name>/questions.md` and `.modscape/specs/_questions.yaml`.
-    Determine the current maximum ID in `_questions.yaml` (e.g. Q-005), then assign new sequential IDs starting from Q-006.
+    For each `### <table-id>` section under `## Table-level` in `changes/<name>/questions.md`:
 
-    **For each entry in `questions.md`:**
-    - Parse: question text, answer (if `[x]`), assumption (if `**Assumption:**` line present)
-    - Determine `status`: `answered` if answered, `assumed` if only assumption present, `open` otherwise
-    - Infer `table` from the section header if the questions.md has per-table sections; leave absent for pipeline-level questions
-    - Append to `_questions.yaml` with `change: <name>` and `date: <YYYY-MM-DD>`
+    **Merge rules:**
+    - Read the existing `.modscape/specs/<table-id>/questions.md` (create it if absent with `# Questions: <table-id>\n`)
+    - Append new questions that do not already exist (compare by question text, not ID)
+    - For questions that were answered (`[x]`) in this change, update the corresponding unresolved entry in the per-table file if one exists
+    - If a previously recorded question is now invalidated by this change (e.g. the column was removed), add a strikethrough note:
+      `~~- [ ] **Q-NNN** <original question>~~ <!-- <name>: <reason e.g. column removed> -->`
+    - Append `<!-- <name> -->` as a comment after each newly added question line
 
-    After merging all entries, delete `.modscape/changes/<name>/questions.md`:
-    ```bash
-    rm .modscape/changes/<name>/questions.md
-    ```
-
-    **If `questions.md` does not exist:** skip this step entirely.
-
-### Step 4.5: Merge glossary into _glossary.yaml
-
-13.5. If `.modscape/changes/<name>/glossary.md` exists:
-
-    Read `.modscape/changes/<name>/glossary.md` and `.modscape/specs/_glossary.yaml` (create `_glossary.yaml` if it does not exist).
-
-    **For each term entry in `glossary.md`:**
-    - Parse: `id`, `definition`, and optional fields (`label`, `tables`, `columns`)
-    - Check if the `id` already exists in `_glossary.yaml`:
-      - **Not registered** → append a new entry under `terms:` with `change: <name>`
-      - **Already registered** → update `change` field only; do NOT overwrite `definition` (preserve manual edits)
-
-    After merging all entries, delete `glossary.md`:
-    ```bash
-    rm .modscape/changes/<name>/glossary.md
-    ```
-
-    **If `glossary.md` does not exist:** skip this step entirely.
+    **Pipeline-level questions (`## Pipeline-level` section) are NOT synced to `specs/`.**
+    They remain in the archive folder only. If any pipeline-level decision is significant enough to preserve, record it in `_context.yaml` under `decisions` (see Step 5).
 
 ### Step 5: Update `_context.yaml`
 
 14. Read or create `.modscape/specs/_context.yaml`.
 
-    `_context.yaml` stores only **cross-project architectural decisions** — NOT Q&A (those are in `_questions.yaml`).
+    For each affected table (Direct Impact + Downstream Impact — Implement):
+    - Set `tables.<table-id>.last_change: <name>`
+    - Set `tables.<table-id>.has_spec: true`
+    - Set `tables.<table-id>.open_questions: <count of [ ] entries in specs/<table-id>/questions.md>`
 
-    **Decisions**: For any significant cross-project decisions surfaced during this change:
-    - Append to `decisions` list (only if significant beyond a single table):
+    For any significant pipeline-level decisions from `changes/<name>/questions.md` `## Pipeline-level`:
+    - Append to `decisions` list (only if the question was answered and the decision has cross-table impact):
       ```yaml
       - id: D-NNN
         summary: "<one-line summary of the decision>"
-        rationale: "<why this decision was made>"  # optional but recommended
         date: <YYYY-MM-DD>
+        affects: [<table-id>, ...]
         change: <name>
       ```
 
-    Do NOT write `questions`, `tables.*`, or any schema fields to `_context.yaml`.
+    Do NOT copy `description`, `kind`, or `tags` from `model.yaml` — those fields are already in the main YAML.
 
     Example `_context.yaml`:
     ```yaml
+    tables:
+      fct_orders:
+        last_change: monthly-sales-summary
+        open_questions: 0
+        has_spec: true
+      dim_customers:
+        last_change: customer-segmentation
+        open_questions: 2
+        has_spec: true
+
     decisions:
       - id: D-001
         summary: "amount is tax-exclusive across all fact tables"
-        rationale: "Finance team requirement — gross amount only at mart layer"
         date: 2026-03-10
+        affects: [fct_orders, mart_revenue]
         change: monthly-sales-summary
     ```
-
-### Step 5.5: Extract and record project conventions
-
-Review `design.md`, `spec.md`, and the decisions recorded in `_context.yaml` during this change for any **project-wide conventions** that were established or confirmed.
-
-**Decision axis — which file to update:**
-- `rules.custom.md`: rules about the **data model** (YAML shape, naming of table/column IDs, required columns, allowed table kinds, domain structure, SCD policy). These rules apply regardless of the implementation tool.
-- `modscape-spec.custom.md`: rules about the **SDD workflow and code generation** (target tool, output directories, tasks.md format additions, code style, main YAML paths). These rules are tool- or process-specific.
-
-**Quick test:** "Would this rule need to change if we switched implementation tools (e.g., dbt → SQLMesh)?"
-- Yes → `modscape-spec.custom.md`
-- No → `rules.custom.md`
-
-If any conventions are found, present them to the user:
-
-> The following conventions may have been established in this change:
->
-> **Data model rules** (candidate for `rules.custom.md`):
-> - \<candidate\>
->
-> **Workflow / code generation rules** (candidate for `modscape-spec.custom.md`):
-> - \<candidate\>
->
-> Add any of these to the project convention files? (y/N)
-
-If confirmed:
-- Create the target file if it does not exist.
-- Append the new rules under an appropriate section heading.
-- Avoid duplicating rules already present in the file.
-
-If no conventions are found, or the user declines: skip this step silently.
 
 ### Step 6: Move to archives
 
@@ -258,14 +218,11 @@ If no conventions are found, or the user declines: skip this step silently.
 - Updated: `specs/<table-id>/spec.md` ...
 - Changelog only: `specs/<table-id>/spec.md` ...
 
-**Questions merged:**
-- `_questions.yaml`: <n> entries added from `questions.md` (or: no questions.md found)
+**Questions synced:**
+- `specs/<table-id>/questions.md` updated (<n> questions added/updated) ...
+- Pipeline-level questions: kept in archive only
 
-**`_context.yaml` updated:** <n> decisions added
-
-**Conventions recorded:**
-- `rules.custom.md`: <n> rules added (or: none)
-- `modscape-spec.custom.md`: <n> rules added (or: none)
+**`_context.yaml` updated:** <n> tables
 
 **Spec coverage:** <n>/<total> tables have permanent specs.
 Tables without specs: <list or "none">

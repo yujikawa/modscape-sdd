@@ -998,7 +998,6 @@ modscape init [--gemini] [--codex] [--claude] [--all] [--sdd] [--yes]
 | `/modscape:spec:archive <name>`      | Sync permanent table specs to `.modscape/specs/<table-id>.md` |
 | `/modscape:spec:status <name>`       | Show current phase, task progress, and next recommended command |
 | `/modscape:spec:search <keyword>`    | Search past archives and specs for a keyword; incorporate relevant findings on explicit request |
-| `/modscape:spec:validate <name>`     | Cross-artifact consistency check — spec ↔ design ↔ model ↔ tasks; reports mismatches by category |
 
 ```bash
 modscape spec new <name>                    # Scaffold work folder (spec-config.yaml, model.yaml, design.md, tasks.md)

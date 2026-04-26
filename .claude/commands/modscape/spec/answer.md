@@ -20,23 +20,23 @@ If `<name>` is not provided:
 - If none exist → stop and tell the user:
   > No active changes found under `.modscape/changes/`. Run `/modscape:spec:requirements` to start a new spec.
 
-Verify that `.modscape/specs/_questions.yaml` exists.
+Verify that `.modscape/changes/<name>/questions.md` exists.
 If not → stop and tell the user:
-> `_questions.yaml` not found. Run `/modscape:spec:requirements <name>` first to generate questions.
+> `questions.md` not found for change `<name>`. Run `/modscape:spec:requirements <name>` first.
 
 ### Step 2 — Resolve the question ID
 
 If `<id>` is not provided:
-- Read `.modscape/specs/_questions.yaml`
-- List all entries where `status` is `open` or `assumed`, filtered to those with `change: <name>` (or show all open if no change filter matches)
+- Read `.modscape/changes/<name>/questions.md`
+- List all entries where the checkbox is `[ ]` (unanswered or unresolved assumption)
 - Display them and ask the user which one to answer
 
-If `<id>` is provided but not found in `_questions.yaml` → stop and tell the user:
-> `<id>` not found in `_questions.yaml`.
+If `<id>` is provided but not found in `questions.md` → stop and tell the user:
+> `<id>` not found in `questions.md` for change `<name>`.
 
 ### Step 3 — Display the question
 
-Show the full question entry from `_questions.yaml`:
+Show the full question entry from `questions.md`:
 
 ```
 ## Answering <id> — <change name>
@@ -65,44 +65,29 @@ Receive the user's free-text reply. Evaluate it against these criteria:
 
 If ambiguous, ask a targeted follow-up question (one question at a time). Continue until the answer is clear or the user says it is unresolvable.
 
-### Step 5 — Write to `_questions.yaml`
-
-Use the Edit tool to update the entry in `.modscape/specs/_questions.yaml`. Do not rewrite the entire file.
+### Step 5 — Write to `questions.md`
 
 **If a clear answer was obtained:**
-- Set `answer: "<final clarified answer>"`
-- Set `status: answered`
-- Remove `assumption` field if present
+- Change `- [ ]` to `- [x]` on the question line
+- If an existing `**Assumption:**` line is present, remove it
+- Insert `  **A:** <final clarified answer>` after the question line (before the next entry)
 
-```yaml
-- id: Q-001
-  question: "<question text>"
-  answer: "<final clarified answer>"
-  status: answered
-  ...
+```markdown
+- [x] **Q-001** <question text>
+  **A:** <final clarified answer>
 ```
 
 **If unresolvable (proceed with assumption):**
-- Set `status: assumed`
-- Set `assumption: "<what will be assumed to proceed>"`
-- Leave `answer` absent
+- Leave `- [ ]` as-is
+- Update (or insert) the `**Assumption:**` line to reflect what will be assumed:
+  ```markdown
+  - [ ] **Q-001** <question text>
+    **Assumption:** <what will be assumed to proceed> (unconfirmed — to be revisited)
+  ```
 
-```yaml
-- id: Q-001
-  question: "<question text>"
-  assumption: "<what will be assumed to proceed>"
-  status: assumed
-  ...
-```
+Use the Edit tool to write changes. Do not rewrite the entire file.
 
-### Step 6 — Update glossary if the answer defines a term
-
-If the answer introduces or clarifies a business/data term definition, update `.modscape/specs/_glossary.yaml`:
-- If the term is not yet registered, append a new entry under `terms:`.
-- If an existing entry's definition changed, update it.
-- If `_glossary.yaml` does not exist, skip silently.
-
-### Step 7 — Assess design impact
+### Step 6 — Assess design impact
 
 After recording the answer, check `.modscape/changes/<name>/design.md` and `.modscape/changes/<name>/spec.md` (if they exist).
 
@@ -120,7 +105,7 @@ Determine impact category:
 ## Answer Recorded — <id>
 
 **Answer:** <the recorded answer>
-**_questions.yaml:** <id> status → answered  (or: assumed — assumption updated)
+**questions.md:** <id> marked [x]  (or: kept [ ] — assumption updated)
 
 **Design impact:** <assessment>
 
