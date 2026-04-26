@@ -11,14 +11,15 @@ Implement pending tasks from `.modscape/changes/<name>/tasks.md` one by one.
 
 ## Instructions
 
-1. Read `.modscape/changes/modscape-spec.custom.md` if it exists — it contains all project-specific rules including target tool, output directories, naming conventions, and code generation preferences. These rules take **priority** over any defaults.
+1. Read `.modscape/modscape-spec.custom.md` if it exists — it contains all project-specific rules including target tool, output directories, naming conventions, and code generation preferences. These rules take **priority** over any defaults.
    If `.modscape/codegen-rules.md` also exists, read it as supplementary reference.
 
-   **When reading model information, always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+   **When reading model information, always use modscape CLI commands — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
    ```bash
    modscape table list <file>
    modscape table get <file> --id <id>
    modscape lineage list <file>
+   modscape relationship list <file>   # join keys and cardinality between tables
    modscape summary <file> --json
    ```
 

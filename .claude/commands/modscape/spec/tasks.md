@@ -2,7 +2,7 @@ Generate an implementation task list from `spec-model.yaml` and write it to `.mo
 
 ## Instructions
 
-1. If `.modscape/changes/modscape-spec.custom.md` exists, read it — its rules take **priority** for phase structure and additional tasks.
+1. If `.modscape/modscape-spec.custom.md` exists, read it — its rules take **priority** for phase structure and additional tasks.
 
 2. Read `.modscape/changes/<name>/spec-model.yaml` (default path) or the path provided by the user.
 

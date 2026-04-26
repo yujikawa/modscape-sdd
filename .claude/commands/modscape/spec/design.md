@@ -13,9 +13,11 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 ## Instructions
 
 1. Read `.modscape/rules.md` to understand the YAML schema and modeling rules.
-   If `.modscape/changes/modscape-spec.custom.md` exists, read it too — its rules take **priority**.
+   If `.modscape/modscape-spec.custom.md` exists, read it too — its rules take **priority**.
 
-   **When reading model information, always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+   **Reading rules — follow strictly, no exceptions:**
+   - **Model data** (tables, columns, lineage, relationships, domains): ALWAYS use modscape CLI. Never use `grep`, direct file reads, or scripts/code (Python, shell, etc.).
+   - **Spec artifacts** (`spec.md`, `design.md`, `_context.yaml`, `_questions.yaml`, etc.): read directly with file read tools — these are not covered by CLI.
    ```bash
    modscape table list <file>
    modscape table get <file> --id <id>
@@ -69,7 +71,27 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 
    If Data Sources are unclear, skip this step — `spec-model.yaml` was already scaffolded as `tables: []` by `modscape spec new`.
 
-6. Read all existing `specs/*.md` files (if any) to understand current business context.
+8. Read all existing `specs/*.md` files (if any) to understand current business context.
+
+9. **Identify affected tables** from the extraction result and classify downstream tables:
+   - **Direct Impact**: Tables specified in `--tables` (will be newly created or structurally modified)
+   - **Downstream Impact — Implement**: Downstream tables that reference a column being added or changed in a Direct Impact table → must be updated
+   - **Downstream Impact — Context Only**: Downstream tables that reference a Direct Impact table but do not use the changed columns → no code changes required, collected for reference only
+   - If a downstream table has no column detail (lineage only) → classify as **Context Only** and add a comment noting that classification confidence is low
+
+   This classification is an **AI proposal**. Write the disclaimer in `design.md` (see format below) and instruct the user to edit it directly if the classification is wrong.
+
+10. **Surface known open questions** (first run only):
+
+   Check `.modscape/specs/questions.md` for unresolved questions (`- [ ]`) that reference any Direct Impact table ID.
+   - If matching questions exist: insert their Q-NNN IDs (not the full question text) into `design.md` under `## Known Open Questions`:
+     ```markdown
+     ## Known Open Questions (from specs/questions.md)
+     There are unresolved questions related to Direct Impact tables. See `.modscape/specs/questions.md` for details.
+     - Q-012, Q-015 → `fct_orders`
+     - Q-019 → `dim_customers`
+     ```
+   - If no matching questions: omit the `## Known Open Questions` section entirely.
 
 7. **Identify affected tables** from the extraction result and classify downstream tables:
    - **Direct Impact**: Tables specified in `--tables` (will be newly created or structurally modified)
@@ -120,6 +142,9 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
    ```bash
    modscape table add .modscape/changes/<name>/spec-model.yaml --id <id> --name "<name>" --type <type>
    modscape lineage add .modscape/changes/<name>/spec-model.yaml --from <from> --to <to>
+   # FK relationship: --from / --to accepts "table.column" or just "table"
+   modscape relationship add .modscape/changes/<name>/spec-model.yaml \
+     --from <table>.<column> --to <table>.<column> --type <one-to-many|many-to-one|one-to-one|many-to-many>
    # domain add: only when explicitly requested by the user
    modscape domain add .modscape/changes/<name>/spec-model.yaml --id <id> --name "<name>"
    ```
@@ -194,37 +219,14 @@ Design the data model based on `spec.md` and update `changes/<name>/spec-model.y
 <- dbt incremental merge on order_id performs well>
 ```
 
-## Task Generation Rules
+## Next Step
 
-Build a dependency graph from `lineage` entries in `changes/<name>/spec-model.yaml`, then topologically sort.
+**Always output the following at the end, without exception. Build the review summary from the actual state of `questions.md` and `design.md`:**
 
-Assign each table to a phase:
-- **Phase 1 — Staging**: tables with no upstream dependencies
-- **Phase 2 — Core**: tables that depend only on Phase 1 tables
-- **Phase 3 — Mart**: tables furthest downstream
-- **Phase 4 — Tests**: one test task per table with a primary key or foreign key column
+---
+✅ Design updated. `spec-model.yaml` and `design.md` are current.
 
-For each task, include:
-- Table ID in backticks
-- Materialization type in brackets
-- Upstream dependencies with `←` notation (omit for Phase 1)
-
-### tasks.md Format
-
-```markdown
-# Pipeline Tasks
-> Generated from: changes/<name>/spec-model.yaml
-> Spec: .modscape/changes/<name>/spec.md
-> Progress: 0 / <total>
-
-## Phase 1: Staging
-- [ ] `<table_id>` [<materialization>]
-
-## Phase 2: Core
-- [ ] `<table_id>` [<materialization>] ← <upstream_1>, <upstream_2>
-
-## Phase 3: Mart
-- [ ] `<table_id>` [<materialization>] ← <upstream_1>
+## Review Checkpoint
 
 ## Phase 4: Tests
 - [ ] `<table_id>` — <column_id>: unique, not_null  [→ AC-001, AC-003]
@@ -246,8 +248,7 @@ For each task, include:
 
 **Always output the following at the end, without exception. Build the review summary from the actual state of `questions.md`, `design.md`, and `tasks.md`:**
 
----
-✅ Design complete. `tasks.md` generated at `.modscape/changes/<name>/tasks.md`
+⚠️ Open issues found. Please review before continuing. *(If zero issues: ✅ No open issues.)*
 
 ## Review Checkpoint
 
@@ -277,9 +278,5 @@ To preview the model:
 modscape dev .modscape/changes/<name>/spec-model.yaml
 ```
 
-If you discover issues during implementation, add them to `## Findings` in `.modscape/changes/<name>/design.md`:
-- Model change needed → `### Requires Model Change`
-- Observation only → `### Implementation Notes`
-
-Then re-run `/modscape:spec:design <name>` to update the design.
+If you discover issues, add them to `## Findings` in `design.md` and re-run `/modscape:spec:design <name>`.
 ---
