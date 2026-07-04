@@ -2,68 +2,52 @@ Generate an implementation task list from `spec-model.yaml` and write it to `.mo
 
 ## Instructions
 
-0. **Resolve `<name>`** — if the user did not provide a spec name argument:
-   ```bash
-   modscape spec list
-   ```
-   - No specs: stop and tell the user to run `modscape spec new <name>` first.
-   - Exactly one spec: use it automatically and note "Using spec: `<name>`".
-   - Multiple specs: show the list and ask the user to choose one.
-
-1. If `.modscape/modscape-spec.custom.md` exists, read it — its rules take **priority** over all defaults, including phase structure, additional tasks, and **communication preferences** (language, response format, etc.). Apply every rule in the file.
+1. If `.modscape/changes/modscape-spec.custom.md` exists, read it — its rules take **priority** for phase structure and additional tasks.
 
 2. Read `.modscape/changes/<name>/spec-model.yaml` (default path) or the path provided by the user.
 
-3. **Build the Context Only skip list** from `design.md`:
-   - If `.modscape/changes/<name>/design.md` exists: read the Affected Tables section and extract all table IDs with "Downstream — Context Only" in the Impact column into a skip list.
-   - If `design.md` does not exist or has no such entries: the skip list is empty — all tables are treated as implementation targets.
-
-4. Check that `lineage` is defined.
+3. Check that `lineage` is defined.
    - If `lineage` is missing or empty: stop and tell the user:
      > No `lineage` entries found in `spec-model.yaml`. Run `/modscape:spec:design` to add lineage before generating tasks.
 
-5. Build a dependency graph from `lineage` entries (`from` → `to`).
-   - Only include nodes that exist in `tables`. Exclude `consumers` and any node not in `tables`.
+4. Build a dependency graph from `lineage` entries (`from` → `to`), then topologically sort all tables.
 
-6. Group tables into phases based on their position in the dependency graph (upstream tables first). Name each phase in a way that clearly describes the role of tables it contains — choose names that match the spec's context (e.g., "Staging", "Core", "Mart", "Reference Data", "Intermediate"). If `.modscape/modscape-spec.custom.md` specifies phase names or structure, follow those instructions instead.
-   - **Skip any table in the Context Only skip list** — do not assign it to any phase.
+5. Assign each table to a phase based on its depth in the dependency graph:
+   - **Phase 1 — Staging**: tables with no upstream dependencies (leaf sources)
+   - **Phase 2 — Core**: tables that depend only on Phase 1 tables (facts, dimensions, hubs, links, satellites)
+   - **Phase 3 — Mart**: tables furthest downstream (mart type, or aggregated outputs)
+   - **Phase 4 — Tests**: one test task per table that has a primary key column or foreign key column
 
-   For each task, include only:
+   For each task, include:
    - Table ID in backticks
+   - Materialization type in brackets (from `physical.strategy` or inferred from `conceptual.kind`)
+   - Upstream dependencies with `←` notation (omit for Phase 1)
 
-7. **Write `.modscape/changes/<name>/tasks.md`** — behavior depends on the current state of the file:
+6. Write `.modscape/changes/<name>/tasks.md` using the format below.
 
-   - **`tasks.md` does not exist** → generate fresh following the format.
-   - **`tasks.md` exists and has 0 completed tasks (`- [x]`)** → overwrite and regenerate.
-   - **`tasks.md` exists and has 1 or more completed tasks (`- [x]`)** → perform a merge:
-     1. Compute the diff and present it to the user:
-        - **Add**: tables present in the new `spec-model.yaml` but not in the current `tasks.md` → add as `[ ]`
-        - **Keep**: tasks present in both with `[x]` → preserve `[x]`
-        - **Remove**: tables present in the current `tasks.md` but removed from the new `spec-model.yaml` → delete
-        ```
-        Updating tasks.md.
-
-        Add:    [ ] <table-id> (new)
-        Keep:   [x] <table-id>, [x] <table-id>
-        Remove: <table-id> (removed from spec-model.yaml)
-
-        Continue? [y/N]
-        ```
-     2. After the user confirms, execute the merge and write following the format.
-
-   Use the table ID as the task identifier key. If an ID changes, treat it as a remove + add.
-
-8. Set the phase by running:
-   ```bash
-   modscape spec set-phase <name> tasks
-   ```
+7. Update `Status` in `.modscape/changes/<name>/spec.md` from `design` to `tasks` (if spec.md exists).
 
 ## tasks.md Format
 
-The format template is defined in `.modscape/formats/tasks-format.md`.
-Read that file before writing `tasks.md` and use it as the template.
+```markdown
+# Pipeline Tasks
+> Generated from: .modscape/changes/<name>/spec-model.yaml
+> Spec: .modscape/changes/<name>/spec.md
+> Progress: 0 / <total>
 
-Omit the `## Context Only (Skipped)` section entirely if the skip list is empty.
+## Phase 1: Staging
+- [ ] `<table_id>` [<materialization>]
+
+## Phase 2: Core
+- [ ] `<table_id>` [<materialization>] ← <upstream_1>, <upstream_2>
+
+## Phase 3: Mart
+- [ ] `<table_id>` [<materialization>] ← <upstream_1>
+
+## Phase 4: Tests
+- [ ] `<table_id>` — <column_id>: unique, not_null
+- [ ] `<table_a>` → `<table_b>` FK test
+```
 
 ## Usage
 

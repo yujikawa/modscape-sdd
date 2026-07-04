@@ -1,8 +1,0 @@
-main_yamls:
-  - path: main-model.yaml
-    tables:
-      - stg_billing_subscriptions
-      - fct_subscription_events
-      - mart_arr
-      - dim_subscriptions
-      - mart_revenue_summary

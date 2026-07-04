@@ -8,30 +8,24 @@
 #
 # SDD Directory Structure:
 #   .modscape/
-#   ├── modscape-spec.custom.md         This file (project-wide SDD custom rules)
-#   ├── rules.custom.md                 Data model conventions (optional)
 #   ├── changes/
+#   │   ├── modscape-spec.custom.md     This file (project-wide custom rules)
 #   │   └── <name>/                     Work folder per pipeline (temporary)
 #   │       ├── spec.md                 Business requirements
 #   │       ├── spec-config.yaml        Main YAML mapping for this spec
-#   │       ├── spec-model.yaml         Work-scoped data model (extracted + new tables)
+#   │       ├── model.yaml              Work-scoped YAML (extracted + new tables)
 #   │       ├── design.md               Design decisions + real-data findings
 #   │       └── tasks.md                Implementation task list
 #   ├── archives/
 #   │   └── YYYY-MM-DD-<name>/          Archived work folders
-#   └── specs/                          Permanent spec storage (overridable — see ## Spec Directory)
-#       ├── <table-id>/
-#       │   └── spec.md                 Permanent business spec per table
-#       ├── _questions.yaml             Q&A history
-#       ├── _glossary.yaml              Business term definitions
-#       └── _context.yaml              Cross-project architectural decisions
+#   └── specs/
+#       └── <table-id>.md               Permanent business spec per table
 #
 # SDD Workflow:
 #   /modscape:spec:requirements           → create changes/<name>/spec.md
-#   /modscape:spec:design <name>          → design spec-model.yaml, generate design.md
-#   /modscape:spec:tasks <name>           → generate tasks.md from finalized design
+#   /modscape:spec:design <name>          → design model.yaml, generate design.md + tasks.md
 #   /modscape:spec:implement <name>       → implement tasks one by one
-#   /modscape:spec:archive <name>         → merge into main YAML, sync specs/<table-id>/spec.md, move to archives/
+#   /modscape:spec:archive <name>         → sync specs/<table-id>.md, optionally delete changes/<name>/
 
 ## Overall Policy
 
@@ -39,13 +33,6 @@
 # - This project uses Data Vault 2.0 modeling patterns.
 # - Target tool is always dbt (BigQuery). Do not ask the user to choose.
 # - All models must be in the `analytics` dbt project.
-
-## Communication
-
-# Set the language for all AI responses in this project.
-# Uncomment one of the lines below:
-# - Always respond in Japanese.
-# - Always respond in English.
 
 ## Main YAMLs
 
@@ -90,23 +77,3 @@
 # - Fact: fct_<event>
 # - Dimension: dim_<entity>
 # - Mart: mart_<domain>_<metric>
-
-## Spec Directory
-
-# Override the default permanent spec storage directory.
-# Default: .modscape/specs
-# Set this when your project stores specs outside the .modscape/ tree
-# (e.g., alongside dbt models or in a shared docs directory).
-# All archive operations (spec sync, _questions.yaml, _glossary.yaml, _context.yaml)
-# will use this path instead of the default.
-#
-# - Spec directory: docs/specs
-
-## Coverage Policy
-
-# Minimum documentation coverage threshold (0-100).
-# When set, /modscape:spec:check shows a coverage warning for tables below this threshold,
-# and /modscape:spec:archive prompts for confirmation before merging if coverage is below it.
-# Remove or comment out this section to disable coverage checks entirely.
-#
-# - Minimum documentation coverage: 70%

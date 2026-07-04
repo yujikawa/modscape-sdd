@@ -2,10 +2,10 @@ Gather business requirements interactively and generate `.modscape/changes/<name
 
 ## Instructions
 
-1. If `.modscape/modscape-spec.custom.md` exists, read it **in addition** to these instructions.
+1. If `.modscape/changes/modscape-spec.custom.md` exists, read it **in addition** to these instructions.
    Rules in `modscape-spec.custom.md` take **priority** when they conflict.
 
-   **When reading model information (tables, lineage, etc.), always use modscape CLI commands — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+   **When reading model information (tables, lineage, etc.), always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
    ```bash
    modscape table list <file>
    modscape table get <file> --id <id>
@@ -23,35 +23,9 @@ Gather business requirements interactively and generate `.modscape/changes/<name
    - **Goal** — who is this for and what problem does it solve?
    - **Stakeholders** — owner (team or person) and consumers (downstream users or systems)
    - **Data Sources** — existing tables, databases, or external systems that feed this pipeline
-   - **Table Relationships** — FK joins between source tables (e.g., `orders.customer_id → customers.id`, cardinality). Ask explicitly if not volunteered: "How do these source tables join to each other?"
-   - **Acceptance Criteria** — abstract conditions for "done" (at least 2–3 items). Each AC states **what** should be satisfied, not **how** to verify it. Do NOT include verification SQL, column-level expressions, or WHEN/THEN scenarios — those belong in `design.md`. Assign a sequential ID (`AC-001`, `AC-002`, ...) to each criterion as you write it into `spec.md`. If the user provides criteria in free-form text, you assign the IDs.
+   - **Acceptance Criteria** — concrete, testable conditions for "done" (at least 2–3 items). Assign a sequential ID (`AC-001`, `AC-002`, ...) to each criterion as you write it into `spec.md`. If the user provides criteria in free-form text, you assign the IDs.
    - **Target Tool** — `dbt` | `SQLMesh` | `Spark SQL` | `plain SQL` (skip if set in custom.md)
    - **Main YAML(s)** — path(s) to main model YAML file(s) (skip if set in custom.md; otherwise ask)
-
-3.5. **Business Context Elicitation** — Probe for data-related business context that only humans know. This is the most important step: the goal is to capture knowledge about how data is generated, what it means, and how the business operates around it. AI cannot derive this from the schema alone.
-
-   Ask each question below explicitly. Do not skip even if requirements seem clear.
-
-   **Data occurrence conditions** — for each source table or event:
-   - "What business event or action causes a row to be created in `<table>`?"
-   - "What happens in the business process *before* this data is recorded?"
-   - "Who enters this data, in what system, and for what purpose?"
-   - "Under what conditions is a row updated or deleted?"
-
-   **Business process / flow**:
-   - "Walk me through the end-to-end business process that this data is part of."
-   - "What happens *after* this data is recorded? Who consumes it and for what?"
-   - "Are there upstream approvals, rejections, or corrections that affect this data?"
-
-   **Domain-specific rules and edge cases**:
-   - "Are there cases where the data looks wrong but is actually correct by business rule? (e.g., a negative amount, a future date, a NULL that means something specific)"
-   - "Are there status codes, flags, or magic values in this data that have a specific meaning only your team knows?"
-   - "What's the most common mistake engineers make when working with this data?"
-
-   Catch-all (always ask):
-   - "Is there anything about how this business works or how this data is generated that an engineer would get wrong without being told?"
-
-   Record all answers in `spec.md` under `## Business Context`. If a question yields no new information, skip it silently.
 
 4. After collecting requirements, propose a work folder name:
    - Derive a short, descriptive kebab-case name from the pipeline title (e.g., `monthly-sales-summary`)
@@ -82,72 +56,43 @@ Gather business requirements interactively and generate `.modscape/changes/<name
 
 9. Write the requirements to `.modscape/changes/<name>/spec.md`.
 
-10. Set the phase by running:
-   ```bash
-   modscape spec set-phase <name> requirements
-   ```
+10. Set `Status: requirements` in the spec file.
 
-10.5. Review the conversation for any business or data terms that were introduced or defined.
+11. Review the conversation for any items you could not confirm with the user (e.g. unknown data owners, undefined SLAs, ambiguous business rules). For each such item, append a question to `.modscape/changes/<name>/questions.md` using the format below. If proceeding with an assumption, record it on the `**Assumption:**` line.
 
-   Target terms (record these):
-   - Project-specific / in-house terms and abbreviations
-   - Common words that carry a specific meaning in this project's context
+```markdown
+- [ ] **Q-NNN** <question text>
+  **Assumption:** <what you assumed to proceed> (unconfirmed)
+```
 
-   Skip these (do NOT record):
-   - General SQL terms (JOIN, GROUP BY, NULL, etc.)
-   - Standard data modeling concepts (fact, dimension, hub, satellite, etc.)
-   - Self-evident column names (created_at, id, etc.)
-
-   For each qualifying term, append to `.modscape/changes/<name>/glossary.md` (create the file if it does not exist). Do NOT write to `_glossary.yaml` directly.
-
-   The format template is defined in `.modscape/formats/glossary-format.md`.
-   Read that file and use it when writing entries to `glossary.md`.
-
-   If no qualifying terms were found, skip silently.
-
-10.6. **Proactive Tacit Knowledge Detection** — Review the conversation for signals that would cause an **analyst using this data product to draw wrong conclusions or be confused**. For each signal found, add a question to `.modscape/changes/<name>/questions.md` with `status: open` and `source: ai-detected`. Do not ask the user now — record it for a later interview session.
-
-   Focus only on signals that affect **analytical correctness** — things an analyst would get wrong without being told:
-   - A metric or measure with an ambiguous name (e.g., "revenue", "sales", "count") — whose inclusion/exclusion criteria (tax? returns? cancellations?) were not stated
-   - A key or ID that appears in multiple systems — but whether it is semantically equivalent across systems was not confirmed (a cross-system JOIN may silently produce wrong results)
-   - A process described as "sometimes manual", "for exceptions", or "irregular" — without stating whether these records appear in the data or are excluded
-   - A date or timestamp column — whose business meaning (event time vs. record entry time vs. processing time) was not clarified
-   - A status or flag whose values were not enumerated — where an analyst filtering on a subset of values might unknowingly exclude valid records
-   - Data described as covering "all X" — but where there are known segments, periods, or conditions that are actually excluded
-
-   For each signal, write the entry to `questions.md` **and generate a PII-safe investigation query** in the `investigation:` block. This query is ready to run against the real data — the human fills in `result:` after running it, then AI fills in `finding:` via `/modscape:spec:answer`.
-
-   Use the format defined in `.modscape/formats/questions-format.md` (ai-detected entry with `investigation` block).
-
-   **PII safety rules for the generated query:**
-   - Only aggregate functions: COUNT, COUNT(DISTINCT), MIN, MAX, AVG, SUM
-   - Never SELECT * or raw row samples
-   - Never include columns that may contain PII (names, emails, phone numbers, addresses, birth dates, national IDs, IP addresses, account numbers)
-   - For value distribution: use GROUP BY + COUNT(*) — never show raw PII values
-   - If unsure whether a column contains PII, exclude it and add a `-- PII risk: excluded` comment
-
-   > ⚠️ **Human review required before running**: The AI generates this query as a starting point following PII-safety rules, but **the human must review the query before executing it** to verify no PII columns are inadvertently included. AI cannot know which columns contain PII in your specific environment. Never run without reviewing.
-
-11. Review the **entire conversation** and append question entries to `.modscape/changes/<name>/questions.md` (create if it does not exist) for all of the following:
-
-   - **Answered** — questions you asked and the user gave a clear answer to → `status: answered`, record the answer in the `answer` field
-   - **Assumed** — items you could not confirm and proceeded with an assumption → `status: assumed`, record the assumption in the `assumption` field
-   - **Open** — items still unresolved at the end of the conversation → `status: open`
-
-   **Relationship questions to check specifically** — for each pair of source tables mentioned, verify:
-   - Is the join key known? If not → add a question: "What key joins `<A>` and `<B>`?"
-   - Is the cardinality known (one-to-many / many-to-one / etc.)? If not → add a question
-   - Is the join type known (LEFT / INNER / etc.)? If not → add a question
-   These are blocking questions for implementation — do not leave them unasked.
-
-   Determine the next ID by reading the current max Q-NNN across both `.modscape/specs/_questions.yaml` and `questions.md`. Use the format defined in `.modscape/formats/questions-format.md` (standard question entry).
-
-   Record every question that shaped the spec — answered questions are just as important for traceability as open ones.
+Question IDs are sequential within the change (`Q-001`, `Q-002`, ...). Do **not** add a question if the user already provided a clear answer during the conversation.
 
 ## spec.md Format
 
-The format template is defined in `.modscape/formats/spec-format.md`.
-Read that file before writing `spec.md` and use it as the template.
+```markdown
+# Pipeline Spec: <title>
+
+## Goal
+<Who is this for and what problem does it solve?>
+
+## Stakeholders
+- owner: <team or person>
+- consumers: [<list of downstream users or systems>]
+
+## Data Sources
+- <source 1>
+- <source 2>
+
+## Acceptance Criteria
+- [ ] AC-001: <criterion 1>
+- [ ] AC-002: <criterion 2>
+
+## Target Tool
+<dbt | SQLMesh | Spark SQL | plain SQL>
+
+## Status
+requirements
+```
 
 ## spec-config.yaml Format
 
@@ -181,5 +126,4 @@ main_yamls:
 ```
 /modscape:spec:design <name>
 ```
-
 ---

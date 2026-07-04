@@ -1,6 +1,65 @@
-# .modscape/specs/_context.yaml
-# Cross-project architectural decisions from SDD interactions.
-# Do NOT store schema info here — that belongs in model.yaml.
-# Q&A is stored in _questions.yaml.
+tables:
+  stg_billing_subscriptions:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+  dim_subscriptions:
+    last_change: annual-billing
+    has_spec: true
+    open_questions: 0
+  fct_subscription_events:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  mart_arr:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  stg_customers:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  stg_plans:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  dim_customers:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  dim_plans:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
+  mart_revenue_summary:
+    last_change: dimension-expansion
+    has_spec: true
+    open_questions: 0
 
-decisions: []
+decisions:
+  - id: D-001
+    summary: "annual_price_usd NULL は monthly_price_usd × 12 でフォールバック（Staging 層で処理）"
+    date: 2026-04-18
+    affects: [stg_billing_subscriptions, dim_subscriptions, fct_subscription_events, mart_arr]
+    change: annual-billing
+  - id: D-002
+    summary: "mart_arr の粒度は年次スナップショット（year_key × plan_id × country_code）のみ。月次 ARR 追跡なし"
+    date: 2026-04-18
+    affects: [mart_arr]
+    change: annual-billing
+  - id: D-003
+    summary: "country_code は dim_customers で解決済み。fct_subscription_events に LEFT JOIN で補完（dimension-expansion でクローズ）"
+    date: 2026-04-18
+    resolved_date: 2026-04-18
+    affects: [dim_subscriptions, fct_subscription_events, mart_arr, dim_customers]
+    change: dimension-expansion
+  - id: D-004
+    summary: "mart_revenue_summary は mart_arr の上位互換。mart_arr は後方互換のため削除せず共存"
+    date: 2026-04-18
+    affects: [mart_arr, mart_revenue_summary]
+    change: dimension-expansion
+  - id: D-005
+    summary: "fct_subscription_events は DROP & RECREATE で再生成（SQLite の ALTER TABLE + UPDATE JOIN 制約のため）"
+    date: 2026-04-18
+    affects: [fct_subscription_events]
+    change: dimension-expansion
