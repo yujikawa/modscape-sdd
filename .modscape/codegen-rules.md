@@ -6,6 +6,22 @@ Read this file alongside `.modscape/rules.md` (which defines the YAML schema) be
 
 ---
 
+## 0. Context Reading
+
+Before generating code, read the following context in order:
+
+1. **`model.yaml`** — table structure, relationships, lineage, grain, measures
+2. **`.modscape/specs/<MODEL_SLUG>/<table-id>.md`** — per-table business context: grain, required filters, domain rules, known issues, common JOIN patterns
+
+   `MODEL_SLUG` is the base name of the main YAML file (e.g. `model.yaml` → `model`).
+
+3. **`.modscape/specs/_glossary.yaml`** — business term definitions
+4. **`.modscape/specs/_questions.yaml`** — resolved Q&A and confirmed assumptions
+
+If the per-table spec does not answer your question (e.g. unclear business rule, unexpected edge case), check the Changelog section of that spec for `(SDD: <name>)` entries, then read `.modscape/archives/YYYY-MM-DD-<name>/design.md` for the original design rationale and transformation details.
+
+---
+
 ## 1. Dependency Order (DAG)
 
 Use the top-level `lineage` section to determine build order. Always generate upstream (`from`) models before downstream (`to`) ones.

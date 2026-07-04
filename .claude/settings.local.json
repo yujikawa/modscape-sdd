@@ -11,7 +11,9 @@
       "Bash(modscape migrate *)",
       "Bash(modscape --help)",
       "Bash(modscape relationship *)",
-      "Bash(modscape merge *)"
+      "Bash(modscape merge *)",
+      "Bash(modscape summary *)",
+      "Bash(modscape column *)"
     ]
   }
 }

@@ -1,0 +1,6 @@
+# .modscape/specs/_glossary.yaml
+# Project-wide glossary of business and data terms.
+# Use this to define terms that appear across multiple tables.
+# Per-table knowledge belongs in specs/<table-id>/spec.md and questions.md.
+
+terms: []

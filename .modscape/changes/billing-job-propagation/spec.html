@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>billing job カラム下流伝播 — Spec</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  header { border-bottom: 1px solid #334155; padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.5rem; }
+  .meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-status { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f6; }
+  .badge-tool   { background: #1a2e1a; color: #86efac; border: 1px solid #22c55e; }
+  .badge-owner  { background: #2d1b4e; color: #c4b5fd; border: 1px solid #8b5cf6; }
+  section { margin-bottom: 2rem; }
+  h2 { font-size: 1.1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; padding-bottom: 0.375rem; border-bottom: 1px solid #1e293b; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 1.25rem; }
+  p { color: #cbd5e1; }
+  ul { list-style: none; padding: 0; }
+  ul li { padding: 0.375rem 0; color: #cbd5e1; display: flex; align-items: flex-start; gap: 0.5rem; }
+  ul li::before { content: '—'; color: #475569; flex-shrink: 0; }
+  .stakeholders { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .stakeholder-group label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; display: block; margin-bottom: 0.5rem; }
+  .stakeholder-group .name { color: #e2e8f0; font-weight: 500; }
+  .ac-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .ac-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.375rem; }
+  .ac-id { font-size: 0.75rem; font-weight: 700; color: #60a5fa; background: #1e3a5f; padding: 0.125rem 0.5rem; border-radius: 0.25rem; flex-shrink: 0; font-family: monospace; }
+  .ac-text { color: #cbd5e1; font-size: 0.9rem; }
+  .ac-item.done { border-color: #166534; background: #052e16; }
+  .ac-item.done .ac-id { color: #4ade80; background: #052e16; }
+  .sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+  .source-chip { background: #1e293b; border: 1px solid #334155; border-radius: 0.375rem; padding: 0.5rem 0.875rem; font-family: monospace; font-size: 0.85rem; color: #e2e8f0; }
+  .relationships-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .rel-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.375rem; font-family: monospace; font-size: 0.85rem; color: #cbd5e1; }
+  .rel-arrow { color: #60a5fa; }
+  .rel-card-label { font-size: 0.7rem; color: #64748b; margin-left: auto; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #1e293b; font-size: 0.75rem; color: #475569; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>billing job カラム下流伝播</h1>
+    <div class="meta">
+      <span class="badge badge-status">tasks</span>
+      <span class="badge badge-tool">plain SQL</span>
+      <span class="badge badge-owner">Data Platform チーム</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Goal</h2>
+    <div class="card">
+      <p>billing テーブル（stg_billing_subscriptions）に追加された職業（job）カラムを、下流の fct_subscription_events・dim_subscriptions・mart_arr・mart_revenue_summary まで伝播させる。BIチームが職業軸でのARR/MRR分析を行えるようにすることが目的。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Stakeholders</h2>
+    <div class="card stakeholders">
+      <div class="stakeholder-group">
+        <label>Owner</label>
+        <div class="name">Data Platform チーム</div>
+      </div>
+      <div class="stakeholder-group">
+        <label>Consumers</label>
+        <div class="name">BI チーム</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Data Sources</h2>
+    <div class="sources-grid">
+      <div class="source-chip">stg_billing_subscriptions</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Table Relationships</h2>
+    <div class="relationships-list">
+      <div class="rel-item"><span>stg_billing_subscriptions</span><span class="rel-arrow">→</span><span>fct_subscription_events</span><span class="rel-card-label">lineage (none)</span></div>
+      <div class="rel-item"><span>stg_billing_subscriptions</span><span class="rel-arrow">→</span><span>dim_subscriptions</span><span class="rel-card-label">lineage (none)</span></div>
+      <div class="rel-item"><span>fct_subscription_events</span><span class="rel-arrow">→</span><span>mart_arr</span><span class="rel-card-label">lineage (none)</span></div>
+      <div class="rel-item"><span>fct_subscription_events</span><span class="rel-arrow">→</span><span>mart_revenue_summary</span><span class="rel-card-label">lineage (none)</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Acceptance Criteria</h2>
+    <div class="ac-list">
+      <div class="ac-item"><span class="ac-id">AC-001</span><span class="ac-text">stg_billing_subscriptions に job カラム（String 型）が定義されており、ソースデータから正しくロードされること</span></div>
+      <div class="ac-item"><span class="ac-id">AC-002</span><span class="ac-text">fct_subscription_events に job カラムが追加され、stg_billing_subscriptions の値が引き継がれること</span></div>
+      <div class="ac-item"><span class="ac-id">AC-003</span><span class="ac-text">dim_subscriptions に job カラムが追加され、最新の職業情報が反映されること</span></div>
+      <div class="ac-item"><span class="ac-id">AC-004</span><span class="ac-text">mart_arr の集計軸（GROUP BY）に job が追加され、職業別ARRが集計できること</span></div>
+      <div class="ac-item"><span class="ac-id">AC-005</span><span class="ac-text">mart_revenue_summary の集計軸（GROUP BY）に job が追加され、職業別ARR/MRRが集計できること</span></div>
+      <div class="ac-item"><span class="ac-id">AC-006</span><span class="ac-text">全テーブルで job カラムが NULL のレコードがないこと（空文字または不明値は許容するが NULL は不可）</span></div>
+    </div>
+  </section>
+
+  <footer>Generated by modscape:spec · 2026-05-09</footer>
+</div>
+</body>
+</html>

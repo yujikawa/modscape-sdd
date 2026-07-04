@@ -1,0 +1,76 @@
+# .modscape/specs/_questions.yaml
+# All Q&A from SDD interactions. Use the 'table' field for table-specific questions.
+# status: open | answered | assumed
+
+questions:
+  - id: Q-001
+    question: "job カラムはどのテーブルまで伝播させるか？"
+    answer: "stg_billing_subscriptions, fct_subscription_events, dim_subscriptions, mart_arr, mart_revenue_summary すべてに追加する"
+    status: answered
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-002
+    question: "mart テーブルで job カラムをどう扱うか（集計軸 or 属性列）？"
+    answer: "mart_arr および mart_revenue_summary の GROUP BY に job を追加し、職業別集計軸とする"
+    status: answered
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-003
+    question: "job カラムの NULL 値の扱いはどうするか？"
+    status: open
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-004
+    question: "job カラムの取りうる値（enum）は何か？マスタリストはあるか？"
+    status: open
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-005
+    question: "mart_arr の粒度が変わる（job が grain に追加）ことで既存の PRIMARY KEY 定義が変わるが、問題ないか？"
+    status: open
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-006
+    question: "billing テーブルへの job カラム追加以前の既存レコードの job 値はどうなるか？（NULL？バックフィル？）"
+    status: assumed
+    assumption: "既存レコードは NULL として扱い、バックフィルはしない"
+    table: stg_billing_subscriptions
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-007
+    question: "job 値の表記揺れ（Engineer / engineer / ENGINEER 等）は stg 層で正規化するか？"
+    status: assumed
+    assumption: "正規化なし、ソースの値をそのまま引き継ぐ"
+    table: stg_billing_subscriptions
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-008
+    question: "job は「サブスクリプション登録時点の職業」か「顧客の現在の職業」か？（dim_subscriptions の SCD Type1 設計に影響する）"
+    status: assumed
+    assumption: "サブスクリプション単位の属性として扱い、dim_subscriptions で SCD Type1 保持"
+    table: dim_subscriptions
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-009
+    question: "mart テーブルで job が NULL のレコードはどう集計するか？（Unknown に変換？NULL のまま GROUP BY？）"
+    status: assumed
+    assumption: "NULL はそのまま NULL として GROUP BY する"
+    table: mart_arr
+    date: 2026-05-09
+    change: billing-job-propagation
+
+  - id: Q-010
+    question: "billing テーブルの job カラムのデータ型・最大文字数に制約はあるか？（VARCHAR(N) 等）"
+    status: assumed
+    assumption: "制約なしの String として受け入れる"
+    table: stg_billing_subscriptions
+    date: 2026-05-09
+    change: billing-job-propagation
