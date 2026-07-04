@@ -12,7 +12,7 @@ Display the SDD workflow overview, or answer a specific question about the workf
 ## Instructions
 
 1. If an argument is provided:
-   - If the topic is a **command name** (`requirements`, `design`, `tasks`, `implement`, `archive`, `status`, `amend`, `review`, `search`, `answer`, `validate`, `explain`, `generate`, `note`):
+   - If the topic is a **command name** (`requirements`, `design`, `tasks`, `implement`, `archive`, `status`, `check`, `search`, `answer`, `generate`, `note`):
      Read `.claude/commands/modscape/spec/<topic>.md` and provide a user-friendly summary: what it does, what it produces, and when to use it. Do not dump the raw file — summarize for a human reader.
    - If the topic is a **question or concept** (e.g. `requirements vs design`, `files`, `resume`):
      Answer it using the reference content below.
@@ -52,11 +52,10 @@ These commands assist during an active SDD workflow. They require a `changes/<na
 | Command | Purpose |
 |---------|---------|
 | `/modscape:spec:status <name>` | Show current progress of a work folder |
-| `/modscape:spec:review <name>` | Go/no-go review: unresolved questions, AC coverage |
-| `/modscape:spec:amend <name>` | Update artifacts when issues are found mid-implementation |
+| `/modscape:spec:status <name> detail` | Detailed view for handoff or onboarding |
+| `/modscape:spec:check <name> [--from spec-model.yaml\|design.md\|spec.md]` | Pre-implement quality check: SSOT-driven consistency + go/no-go readiness |
 | `/modscape:spec:answer <name>` | Answer a recorded Q-NNN question |
-| `/modscape:spec:validate <name>` | Check cross-artifact consistency |
-| `/modscape:spec:explain <name>` | Explain spec content for handoff or onboarding |
+| `/modscape:spec:investigate <name>` | Investigate a topic by reading repo files and record findings in `design.md` |
 
 ## Standalone Commands
 
@@ -65,7 +64,7 @@ These commands work independently — no active workflow or work folder required
 | Command | Purpose |
 |---------|---------|
 | `/modscape:spec:generate [files...]` | Generate `specs/<table-id>/spec.md` for existing tables from model.yaml, SQL, or Python files — use this to bootstrap specs for an existing project |
-| `/modscape:spec:note [table-id]` | Append free-form knowledge (from a conversation, Slack, or meeting) to one or more `specs/<table-id>/spec.md` files |
+| `/modscape:spec:note [table-id]` | Append free-form knowledge (from a conversation, Slack, or meeting) to a permanent table spec. Finds the spec by table ID (no need to know the exact path). Maps input to the right section: Business Rules, Known Issues, Business Context, Usage Guide, etc. |
 | `/modscape:spec:search <keyword>` | Search past archives and permanent specs |
 | `/modscape:spec:help [topic]` | This help |
 
@@ -76,6 +75,8 @@ These commands work independently — no active workflow or work folder required
 ```
 .modscape/
 ├── modscape-spec.custom.md     # SDD workflow conventions (optional)
+│                               #   ## Coverage Policy
+│                               #   Minimum documentation coverage: 80%
 ├── rules.custom.md             # Data model conventions (optional)
 ├── changes/
 │   └── <name>/                 # Work folder (one per pipeline)
@@ -86,7 +87,7 @@ These commands work independently — no active workflow or work folder required
 │       └── tasks.md            # Implementation task list
 ├── archives/
 │   └── YYYY-MM-DD-<name>/      # Completed work folders
-└── specs/
+└── specs/                      # Permanent spec location
     ├── <table-id>/spec.md      # Permanent business spec per table
     ├── _questions.yaml         # Q&A history
     ├── _glossary.yaml          # Business term definitions

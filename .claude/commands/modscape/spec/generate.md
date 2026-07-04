@@ -79,16 +79,18 @@ Read the file and parse:
 
 **Conflict resolution**: If the same physical table name appears in multiple files, use the **first file** that defined it and note the conflict in the final summary.
 
-### Step 4: Generate spec.md for each table
+### Step 4: Generate spec file for each table
 
-For each discovered table, determine the output path:
+Output path per table:
 ```
 .modscape/specs/<table-id>/spec.md
 ```
 
 **If the file already exists: skip it.** Do not overwrite.
 
-**If the file does not exist**: create the directory and write the file using this format:
+**If the file does not exist**: create the directory and write the file.
+
+Write using this format:
 
 ```markdown
 # <table-id>
