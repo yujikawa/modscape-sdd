@@ -363,6 +363,77 @@ Tests: 16 passed, 0 failed
 
 ---
 
+## Sandbox Environment
+
+The `sandbox/` directory contains a ready-to-run **Apache Spark + Apache Iceberg + Apache Airflow** environment. Use it to execute and validate the pipelines you design through the SDD workflow.
+
+### Services
+
+| Service | Role | URL |
+|---|---|---|
+| Apache Airflow | Pipeline execution & scheduling | http://localhost:8080 |
+| Apache Iceberg | Table format on top of Spark (stored in MinIO) | — |
+| MinIO | S3-compatible object storage | http://localhost:9001 |
+| Jupyter Notebook | Interactive Spark SQL exploration | http://localhost:8888 |
+
+### Prerequisites
+
+**Linux / WSL2:**
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+# Re-login to apply group change
+```
+
+**macOS (Colima):**
+```bash
+brew install colima docker docker-compose
+colima start --cpu 4 --memory 8 --disk 30
+```
+
+### Start
+
+```bash
+cd sandbox
+make up      # Build images & start all services
+make ps      # Check status (wait until all services show Up)
+```
+
+### Run the Pipeline
+
+```bash
+make trigger     # Trigger the annual_billing_pipeline DAG
+make query-arr   # Query mart_arr (ARR snapshot result)
+```
+
+Or trigger `annual_billing_pipeline` manually from the Airflow UI (http://localhost:8080, admin / admin).
+
+> **First run**: The `seed_raw` task downloads PySpark JARs from Maven automatically (~3–5 min). Subsequent runs use the cache and are much faster.
+
+### Pipeline Phases
+
+```
+seed_raw → stg_billing → core_vault → mart_arr
+```
+
+| Phase | Airflow Task | Description |
+|---|---|---|
+| Phase 0 | `seed_raw` | Load sample data into `raw.billing_subscriptions` |
+| Phase 1 | `stg_billing` | Create `stg_billing__subscriptions` (staging) |
+| Phase 2 | `core_vault` | Build `hub_subscription` / `sat_subscription_status` / `fct_subscription_events` |
+| Phase 3 | `mart_arr` | Build `mart_arr` (grain: year × plan × country) |
+
+The `billing_cycle` and `annual_price_usd` columns in `sat_subscription_status`, and `arr_amount` in `fct_subscription_events`, satisfy the acceptance criteria of the `annual-billing` SDD change.
+
+### Stop / Clean Up
+
+```bash
+make down        # Stop services (data is preserved)
+make clean       # Remove all containers, volumes, and local images
+```
+
+---
+
 ## Repository Structure
 
 ```

@@ -1,0 +1,127 @@
+version: "3.8"
+
+# ── Shared Airflow environment ────────────────────────────────────────────────
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+  AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nIja3k="
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__WEBSERVER__SECRET_KEY: "modscape-sandbox"
+  # MinIO (S3-compatible storage for Iceberg)
+  AWS_ACCESS_KEY_ID: admin
+  AWS_SECRET_ACCESS_KEY: password
+  AWS_DEFAULT_REGION: us-east-1
+  MINIO_ENDPOINT: http://minio:9000
+  ICEBERG_WAREHOUSE: s3a://warehouse/
+
+x-airflow-volumes: &airflow-volumes
+  - ./airflow/dags:/opt/airflow/dags
+  - ./spark/jobs:/opt/spark/jobs
+  - ./spark/sql:/opt/spark/sql          # SQL files (外出し)
+  - spark-ivy-cache:/home/airflow/.ivy2  # JAR cache — populated on first run
+
+services:
+  # ── Infrastructure ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+      start_period: 5s
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO Console
+    volumes:
+      - minio-data:/data
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 admin password; do
+        echo 'Waiting for MinIO...' && sleep 3;
+      done &&
+      mc mb --ignore-existing local/warehouse &&
+      echo 'MinIO buckets ready'
+      "
+
+  # ── Airflow ────────────────────────────────────────────────────────────────
+  airflow-init:
+    build:
+      context: ./airflow
+    environment: *airflow-env
+    volumes: *airflow-volumes
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: bash -c "airflow db upgrade && (airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true)"
+
+  airflow-webserver:
+    build:
+      context: ./airflow
+    environment: *airflow-env
+    volumes: *airflow-volumes
+    ports:
+      - "8080:8080"
+    command: webserver
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+
+  airflow-scheduler:
+    build:
+      context: ./airflow
+    environment: *airflow-env
+    volumes: *airflow-volumes
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  # ── Spark + Jupyter Notebook (interactive exploration) ────────────────────
+  spark-notebook:
+    image: tabulario/spark-iceberg
+    platform: linux/amd64   # Apple Silicon (M1/M2/M3) では Rosetta エミュレーション
+    depends_on:
+      - minio-init
+    ports:
+      - "8888:8888"   # Jupyter Notebook
+      - "8082:8080"   # Spark UI
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+    volumes:
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./spark/jobs:/home/iceberg/notebooks/jobs
+      - ./spark/sql:/home/iceberg/notebooks/sql
+
+volumes:
+  postgres-data:
+  minio-data:
+  spark-ivy-cache:

@@ -12,7 +12,7 @@ Merge the work-scoped YAML back into the main model, then sync permanent table s
 
 ## Instructions
 
-**When reading model information, always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+**When reading model information, always use modscape CLI commands — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
 ```bash
 modscape table list <file>
 modscape table get <file> --id <id>

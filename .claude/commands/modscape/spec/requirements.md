@@ -2,10 +2,10 @@ Gather business requirements interactively and generate `.modscape/changes/<name
 
 ## Instructions
 
-1. If `.modscape/changes/modscape-spec.custom.md` exists, read it **in addition** to these instructions.
+1. If `.modscape/modscape-spec.custom.md` exists, read it **in addition** to these instructions.
    Rules in `modscape-spec.custom.md` take **priority** when they conflict.
 
-   **When reading model information (tables, lineage, etc.), always use modscape CLI commands or MCP tools — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
+   **When reading model information (tables, lineage, etc.), always use modscape CLI commands — do not use `grep` or direct file reads unless the information is genuinely unavailable from CLI:**
    ```bash
    modscape table list <file>
    modscape table get <file> --id <id>
@@ -82,6 +82,10 @@ Question IDs are sequential within the change (`Q-001`, `Q-002`, ...). Do **not*
 ## Data Sources
 - <source 1>
 - <source 2>
+
+## Table Relationships
+- <source_table>.<column> → <other_table>.<column> [<one-to-many|many-to-one|...>]
+- (omit section if no FK relationships are known)
 
 ## Acceptance Criteria
 - [ ] AC-001: <criterion 1>

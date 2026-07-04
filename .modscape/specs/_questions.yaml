@@ -1,0 +1,5 @@
+# .modscape/specs/_questions.yaml
+# All Q&A from SDD interactions. Use the 'table' field for table-specific questions.
+# status: open | answered | assumed
+
+questions: []

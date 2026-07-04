@@ -1,0 +1,80 @@
+# SDD Custom Rules
+#
+# This file overrides the default SDD skill behavior for this project.
+# Rename to `modscape-spec.custom.md` to activate (remove the `.example` suffix).
+# Rules defined here take PRIORITY over the built-in SDD skill instructions.
+#
+# Delete or comment out any section you don't need to customize.
+#
+# SDD Directory Structure:
+#   .modscape/
+#   ├── modscape-spec.custom.md         This file (project-wide SDD custom rules)
+#   ├── rules.custom.md                 Data model conventions (optional)
+#   ├── changes/
+#   │   └── <name>/                     Work folder per pipeline (temporary)
+#   │       ├── spec.md                 Business requirements
+#   │       ├── spec-config.yaml        Main YAML mapping for this spec
+#   │       ├── model.yaml              Work-scoped YAML (extracted + new tables)
+#   │       ├── design.md               Design decisions + real-data findings
+#   │       └── tasks.md                Implementation task list
+#   ├── archives/
+#   │   └── YYYY-MM-DD-<name>/          Archived work folders
+#   └── specs/
+#       └── <table-id>.md               Permanent business spec per table
+#
+# SDD Workflow:
+#   /modscape:spec:requirements           → create changes/<name>/spec.md
+#   /modscape:spec:design <name>          → design model.yaml, generate design.md + tasks.md
+#   /modscape:spec:implement <name>       → implement tasks one by one
+#   /modscape:spec:archive <name>         → sync specs/<table-id>.md, optionally delete changes/<name>/
+
+## Overall Policy
+
+# Uncomment and edit to set project-wide defaults:
+# - This project uses Data Vault 2.0 modeling patterns.
+# - Target tool is always dbt (BigQuery). Do not ask the user to choose.
+# - All models must be in the `analytics` dbt project.
+
+## Main YAMLs
+
+# Default main YAML(s) for this project.
+# Used when spec-config.yaml does not exist yet.
+# If your project has multiple domain YAMLs, list them all.
+# The AI will ask which tables belong to which YAML during design.
+#
+# Main YAMLs:
+#   - models/sales/HR.yaml
+#   - models/finance/Finance.yaml
+
+## spec.md Extensions
+
+# Additional required fields for spec.md in this project:
+# - Add a `## SLA` section with update frequency (e.g., "Daily at 06:00 JST")
+# - Add a `## Compliance` section for data governance tags (e.g., GDPR, PII)
+
+## tasks.md Format
+
+# Additional phases or tasks to append to every generated tasks.md:
+# ## Phase 5: Data Contracts
+# - [ ] Publish data contract for `<mart_table>`
+# - [ ] Notify downstream consumers of schema
+
+## Implementation Output
+
+# Code generation preferences (used by /modscape:spec:implement):
+# - Target tool: dbt (BigQuery)
+# - Output directory for staging models: models/staging/
+# - Output directory for core models: models/core/
+# - Output directory for mart models: models/mart/
+# - Schema test file: models/schema.yml
+# - Add Japanese comments to generated SQL
+# - Use dbt-expectations for all test assertions
+# - dbt project name: analytics
+
+## Naming Conventions
+
+# Table ID → physical name mapping rules:
+# - Staging: stg_<source>_<entity>
+# - Fact: fct_<event>
+# - Dimension: dim_<entity>
+# - Mart: mart_<domain>_<metric>
